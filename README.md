@@ -1,190 +1,124 @@
 # CSA-Copilot
 
-> AI-powered engagement platform for Cloud Solution Architects — from meeting prep to production-ready Azure delivery
+**Stop spending tonight copy-pasting from MS Learn.** CSA-Copilot turns a single prompt into slide decks, demo guides, hackathon packages, and full Azure projects — researched, built, and QA-checked by 27 AI agents. You describe what you need. They deliver. You review and present.
 
-![CSA-Copilot](assets/screenshots/csa-copilot.png)
-
----
-
-## What This Is
-
-Customer meeting on Wednesday, and you need a 45-slide deck on a service you last touched three months ago. The official deck is two releases behind. Your demo scripts live in five different OneNote pages. You'll spend tonight copy-pasting from MS Learn and wrangling PowerPoint.
-
-CSA-Copilot kills that cycle. It's a terminal-based AI platform built on the GitHub Copilot SDK with **four workflows** — each run by a conductor agent that orchestrates specialist subagents, asks for your approval at key stops, and runs QA checks before delivering output. 27 agents behind the scenes; you just type a prompt.
-
-1. **Presentations** — Complete `.pptx` with speaker notes from a single prompt, researched against official sources
-2. **Demos** — Step-by-step guides with runnable scripts, troubleshooting tables, and "say this" presenter cues
-3. **AI Projects** — Blank page → production-ready Azure project: brainstorm → architecture → Bicep + app code + CI/CD + tests, with a 4-reviewer gate
-4. **Hackathons** — What-The-Hack-style packages with progressive challenges, coach materials, and dev containers
-
-> [!IMPORTANT]
-> **Deep research, not instant generation.** A slide deck takes **~1 hour**, demos 30-45 min, AI projects 1 hour+. That replaces 4-8 hours of manual work. Kick it off and do something else.
->
-> **Accelerator, not autopilot.** Output is a strong first draft with sourced claims and tested code. You own it, refine it, present it.
+<p align="center">
+  <img src="assets/screenshots/csa-copilot-demo.gif" alt="CSA-Copilot in action" width="100%">
+</p>
 
 ---
 
-## A Day in the Life
+## Get Running in 2 Minutes
 
-| Situation | Prompt | Result |
-|-----------|--------|--------|
-| Manager wants a tech update | "Create a 15min L200 briefing on what's new in AKS" | 12-slide deck with speaker notes from MS Learn + devblogs |
-| Customer meeting needs deep coverage | "1-hour L300 deck on GitHub Copilot extensions for financial services" | 30 slides with presenter transcripts, plan approval before build |
-| You already have research notes | "Build a 30min L200 deck from notes/aks-security-review.md" | Deck built from your material, not web research |
-| Demo day for a customer | "Create 3 L300 demos on Azure Container Apps" | Guide + companion scripts + troubleshooting tables + "say this" boxes |
-| Pre-sales brainstorm | "@ai-brainstorming AI use cases for a healthcare company" | 10+ ranked ideas with impact scores, Azure services, phased roadmap |
-| Architecture engagement | "@ai-solution-architect Design architecture for idea #3" | 5 docs: solution design, diagrams, cost estimation, delivery plan |
-| Delivery kickoff | "@ai-implementor Implement the solution" | Bicep + app code + CI/CD + tests (80% coverage gate), 4-reviewer approval |
-| Continue yesterday's work | `/resume` | Full context restored — sessions survive across days |
-| Partner enablement event | "@hackathon-conductor Full-day L300 hackathon on Container Apps" | Challenges + solutions + dev container + coach materials, repo-ready |
-
----
-
-## Workflows
-
-### Presentations
-
-The **Slide Conductor** researches official sources, presents a plan for your approval, builds slides with QA checks, and drops the `.pptx` + generator script into `outputs/slides/`. Also handles technical update briefings and slides from your own notes.
-
-### Demos
-
-The **Demo Conductor** produces a Markdown guide with runnable companion scripts → `outputs/demos/`. Each demo includes step-by-step instructions, "say this" presenter cues, a WOW moment, a troubleshooting table, and companion scripts.
-
-### AI Projects — Idea to Production
-
-Three conductor agents, each with mandatory quality gates:
-
-| Stage | Agent | Output |
-|-------|-------|--------|
-| **Brainstorm** | `@ai-brainstorming` | 10+ ranked ideas with impact scores, Azure mappings, phased roadmap |
-| **Architecture** | `@ai-solution-architect` | 5 docs: solution design, draw.io + ASCII diagrams, cost estimation, delivery plan |
-| **Implementation** | `@ai-implementor` | Bicep infra + app code + CI/CD + tests (80% coverage gate). 4-reviewer approval required |
-
-### Hackathon Events
-
-The **Hackathon Conductor** creates What-The-Hack-style packages: progressive challenges, coach solutions, dev container for Codespaces, facilitation guide, and scoring rubric.
-
-| Duration | Challenges | Spread |
-|----------|-----------|--------|
-| 2 hours | 3-4 | setup → easy → medium |
-| 4 hours | 5-6 | setup → easy → medium → hard |
-| 8 hours | 8-10 | setup → easy → medium → hard → expert |
-
----
-
-## Sample Outputs
-
-Raw, un-edited output — straight from the agents, so you know what to expect.
-
-| | | | |
-|:---:|:---:|:---:|:---:|
-| ![Title slide](assets/screenshots/sample-slide-01.jpg) | ![Section slide](assets/screenshots/sample-slide-11.jpg) | ![Deep dive slide](assets/screenshots/sample-slide-12.jpg) | ![Architecture slide](assets/screenshots/sample-slide-22.jpg) |
-| Title slide | Section | Technical deep dive | Architecture pattern |
-
-*From: Microsoft Fabric - Trustworthy Data (L300, 2h)*
-
-Browse the full output library: [slides](samples/slides/README.md) · [demos](samples/demos/README.md) · [hackathons](samples/hackathons/README.md) · [AI projects](samples/ai-projects/README.md)
-
----
-
-## Architecture
-
-**Routing.** `@agent-name` goes directly to that agent. Otherwise, a GPT-4.1 classifier picks the best match from all routable agent descriptions. No match → default Copilot agent handles it.
-
-**Model selection.** Each agent has a preferred model (claude-sonnet-4.6 for slides/demos/implementation, claude-opus-4.6 for brainstorming/architecture). Override anytime with `/model`.
-
----
-
-## Quality and Trust
-
-Every output goes through multiple quality layers before delivery. See [docs/QUALITY.md](docs/QUALITY.md) for full details.
-
-- **Official sources only** — research restricted to MS Learn, docs.github.com, github.blog, devblogs.microsoft.com, techcommunity.microsoft.com
-- **Human approval stops** — plan approval before builds, output review before delivery
-- **Automated QA checks** — PPTX, architecture, infra, pipeline, docs, and hackathon validators
-- **Content humanization** — AI-tell detection with humanity scoring and automatic rewrites
-- **4-reviewer gate** — code, infra, pipeline, docs reviewers must all APPROVE before AI project delivery
-- **80% test coverage** — enforced via `pytest --cov` threshold
-
----
-
-## Reference Tables
-
-### Content Levels
-
-| Level | Audience | Description |
-|-------|----------|-------------|
-| **L100** | Business / Executive | Value propositions, no code |
-| **L200** | Technical decision makers | Architecture, key concepts |
-| **L300** | Practitioners | Implementation, code samples, best practices |
-| **L400** | Experts | Internals, performance, advanced patterns |
-
-### Slide Durations
-
-| Duration | Approx. slides |
-|----------|---------------|
-| 15 min | 10-14 |
-| 30 min | 15-20 |
-| 1 hour | 25-35 |
-| 2 hours | 40-55 |
-| 4 hours | 70-90 |
-
----
-
-## Getting Started
-
-### Prerequisites
-
-- A **GitHub Copilot** subscription (Individual, Business, or Enterprise) with CLI access
-- The [**GitHub CLI** (`gh`)](https://cli.github.com/) installed and authenticated (`gh auth login`)
-
-### Quickstart (Docker)
-
-**Linux / macOS / Git Bash:**
+You need a [GitHub Copilot](https://github.com/features/copilot) subscription and the [GitHub CLI](https://cli.github.com/) (`gh auth login`).
 
 ```bash
 git clone https://github.com/olivomarco/vbd-copilot.git
 cd vbd-copilot
-docker build -t csa-copilot .
-docker run -it --rm \
-  -e GITHUB_TOKEN=$(gh auth token) \
-  -v "$(pwd)/outputs:/app/outputs" \
-  csa-copilot
+./scripts/setup.sh            # one-time: venv + frontend deps
+./scripts/dev.sh              # Browser UI → http://localhost:5173
+./scripts/dev.sh --electron   # Desktop UI
+./scripts/dev.sh --cli        # CLI (Docker)
 ```
 
-**Windows (CMD):**
+> [!NOTE]
+> **Windows users:** see [docs/INSTALLATION.md](docs/INSTALLATION.md#option-c--cli-via-docker) for Windows-specific Docker commands (`$(gh auth token)` doesn't work in CMD).
 
-```cmd
-git clone https://github.com/olivomarco/vbd-copilot.git
-cd vbd-copilot
-docker build -t csa-copilot .
-gh auth token
-:: Copy the token from the output above
-docker run -it --rm -e GITHUB_TOKEN=YOUR_TOKEN_HERE -v "%cd%/outputs:/app/outputs" csa-copilot
-```
+> [!TIP]
+> `setup.sh` checks prerequisites (`gh`, `uv`, `node`) and installs everything. Pass `--with-system-deps` to also install LibreOffice and Poppler (PPTX thumbnails).
 
-Other installation options (Copilot plugin, Codespaces, native): [docs/INSTALLATION.md](docs/INSTALLATION.md)
+> [!WARNING]
+> The **CLI** is battle-tested. The **Browser / Electron UI** is experimental — if something breaks, fall back to `--cli`.
+
+More install options (Codespaces, Copilot plugin, native Python): [docs/INSTALLATION.md](docs/INSTALLATION.md)
 
 ---
 
-## Key Commands
+## What It Does
 
-| Command | Description |
-|---------|-------------|
-| `/new [agent]` | Start a new session |
-| `/resume [id\|name]` | Resume a previous session |
-| `/agent <name>` | Switch agent mid-session |
-| `/agents` | List all available agents |
-| `/model <id>` | Switch the LLM model |
-| `/usage` | Token counts, cost, context window |
-| `/sessions` | List and inspect sessions |
-| `/debug` | Toggle debug mode |
-| `/help` | Full command reference |
+Four workflows. Each one researches official sources, asks for your approval at checkpoints, and runs automated QA before delivery.
 
-Full command reference and usage examples: [docs/USAGE.md](docs/USAGE.md)
+| Workflow | What you say | What you get | Time saved |
+|----------|-------------|--------------|------------|
+| **Presentations** | *"1-hour L300 deck on GitHub Copilot extensions"* | `.pptx` + speaker notes + generator script | 4-6h → ~1h |
+| **Demos** | *"3 L300 demos on Azure Container Apps"* | Step-by-step guide + runnable scripts + troubleshooting table | 3-4h → ~30min |
+| **AI Projects** | *"Automate claim processing for insurance"* | Brainstorm → architecture → Bicep + app code + CI/CD + tests | Days → ~1h |
+| **Hackathons** | *"Full-day L300 hackathon on Container Apps"* | Challenges + coach solutions + dev container + scoring rubric | 1-2 days → ~1h |
+
+> [!IMPORTANT]
+> This is deep research, not instant generation. A deck takes ~1 hour — but that replaces 4-8 hours of manual work. Kick it off and do something else.
 
 ---
 
-## Responsible AI
+## See It in Action
 
-Human-in-the-loop approval, official-sources-only research, no sensitive data in prompts, transparent first-draft output. Full policy: [docs/RESPONSIBLE-AI.md](docs/RESPONSIBLE-AI.md)
+<table>
+<tr>
+<td width="50%"><strong>Launchpad — pick your workflow</strong><br><img src="assets/screenshots/csa-copilot-web1.png" alt="Launchpad"></td>
+<td width="50%"><strong>Library — browse and preview outputs</strong><br><img src="assets/screenshots/csa-copilot-web2.png" alt="Slide viewer"></td>
+</tr>
+<tr>
+<td><strong>AI agents ask clarifying questions</strong><br><img src="assets/screenshots/csa-copilot-web3.png" alt="Interactive questions"></td>
+<td><strong>Full architecture diagrams, auto-generated</strong><br><img src="assets/screenshots/csa-copilot-web4.png" alt="Architecture diagram"></td>
+</tr>
+<tr>
+<td><strong>Hackathon packages ready for Codespaces</strong><br><img src="assets/screenshots/csa-copilot-web5.png" alt="Hackathon package"></td>
+<td><strong>CLI — same power, no browser needed</strong><br><img src="assets/screenshots/csa-copilot-cli.png" alt="CLI interface"></td>
+</tr>
+</table>
+
+### Sample slide output (raw, unedited)
+
+| | | | | |
+|:---:|:---:|:---:|:---:|:---:|
+| ![](assets/screenshots/sample-slide-01.jpg) | ![](assets/screenshots/sample-slide-05.jpg) | ![](assets/screenshots/sample-slide-11.jpg) | ![](assets/screenshots/sample-slide-12.jpg) | ![](assets/screenshots/sample-slide-22.jpg) |
+| Title slide | Section divider | Content slide | Deep dive | Architecture |
+
+Browse all samples: [slides](samples/slides/README.md) · [demos](samples/demos/README.md) · [hackathons](samples/hackathons/README.md) · [AI projects](samples/ai-projects/README.md)
+
+---
+
+## Quick Reference
+
+### Content levels
+
+| Level | Audience | What it looks like |
+|-------|----------|-------------------|
+| **L100** | Executives | Value props, no code |
+| **L200** | Technical decision makers | Architecture, key concepts |
+| **L300** | Practitioners | Code samples, implementation patterns |
+| **L400** | Experts | Internals, performance tuning |
+
+### Prompt examples
+
+```text
+"Create a 15min L200 briefing on what's new in AKS"
+"Build a 30min deck from notes/aks-security-review.md"
+"@ai-brainstorming AI use cases for a healthcare company"
+"@ai-solution-architect Design architecture for idea #3"
+"@ai-implementor Implement the solution"
+"@hackathon-conductor 4-hour L300 hackathon on AKS"
+/resume                    # pick up where you left off
+/model                     # switch models mid-session
+```
+
+---
+
+## Quality Gates
+
+Every output passes through multiple checks before delivery. Details: [docs/QUALITY.md](docs/QUALITY.md)
+
+- Research restricted to official sources (MS Learn, docs.github.com, devblogs, techcommunity)
+- Human approval stops before builds and before delivery
+- Automated QA validators for PPTX, architecture, infra, pipelines, docs, and hackathons
+- Content humanization — AI-tell detection with automatic rewrites
+- 4-reviewer gate on AI projects (code, infra, pipeline, docs must all approve)
+- 80% test coverage enforced via `pytest --cov`
+
+---
+
+## More
+
+- [Full usage guide & commands](docs/USAGE.md)
+- [All installation options](docs/INSTALLATION.md)
+- [Responsible AI policy](docs/RESPONSIBLE-AI.md)

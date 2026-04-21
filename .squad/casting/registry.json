@@ -1,0 +1,60 @@
+{
+  "agents": {
+    "keaton": {
+      "persistent_name": "Keaton",
+      "universe": "The Usual Suspects",
+      "created_at": "2026-04-02T06:59:20Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "mcmanus": {
+      "persistent_name": "McManus",
+      "universe": "The Usual Suspects",
+      "created_at": "2026-04-02T06:59:20Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "verbal": {
+      "persistent_name": "Verbal",
+      "universe": "The Usual Suspects",
+      "created_at": "2026-04-02T06:59:20Z",
+      "legacy_named": false,
+      "status": "retired"
+    },
+    "fenster": {
+      "persistent_name": "Fenster",
+      "universe": "The Usual Suspects",
+      "created_at": "2026-04-02T06:59:20Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "hockney": {
+      "persistent_name": "Hockney",
+      "universe": "The Usual Suspects",
+      "created_at": "2026-04-02T06:59:20Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "kobayashi": {
+      "persistent_name": "Kobayashi",
+      "universe": "The Usual Suspects",
+      "created_at": "2026-04-03T00:00:00Z",
+      "legacy_named": false,
+      "status": "retired"
+    },
+    "redfoot": {
+      "persistent_name": "Redfoot",
+      "universe": "The Usual Suspects",
+      "created_at": "2026-04-03T00:00:00Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "kujan": {
+      "persistent_name": "Kujan",
+      "universe": "The Usual Suspects",
+      "created_at": "2026-04-06T00:00:00Z",
+      "legacy_named": false,
+      "status": "active"
+    }
+  }
+}

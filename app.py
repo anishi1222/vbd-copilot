@@ -18,9 +18,9 @@ from __future__ import annotations
 import argparse
 import asyncio
 import contextlib
+import logging
 import os
 import socket
-import sys
 import time
 from pathlib import Path
 
@@ -33,7 +33,13 @@ from copilot.types import (
     UserInputResponse,
 )
 
-from agents import AGENTS, ALL_AGENT_CONFIGS, ALL_SKILL_DIRS, DEFAULT_MODEL, DEFAULT_TIMEOUT
+from agents import (
+    AGENTS,
+    ALL_AGENT_CONFIGS,
+    ALL_SKILL_DIRS,
+    DEFAULT_MODEL,
+    DEFAULT_TIMEOUT,
+)
 from collector import EventCollector
 from router import init_router, route_to_agent
 from store import EventStore
@@ -52,12 +58,35 @@ DB_DIR = Path.home() / ".csa-copilot"
 _INTERESTING_SUFFIXES = {".pptx", ".md", ".py", ".bicep", ".json", ".yaml", ".sh"}
 _SKIP_DIRS = {".fragments"}
 
+# Map agent names to their expected output subdirectories so parallel
+# sessions only pick up their own files.
+_AGENT_OUTPUT_DIRS: dict[str, str] = {
+    "slide-conductor": "slides",
+    "demo-conductor": "demos",
+    "hackathon-conductor": "hackathons",
+    "ai-brainstorming": "ai-projects",
+    "ai-solution-architect": "ai-projects",
+    "ai-implementor": "ai-projects",
+    "ai-demo-conductor": "demos",
+}
 
-def _find_new_outputs(since: float) -> list[Path]:
-    """Return output files created/modified after `since` (epoch seconds)."""
+
+def _find_new_outputs(since: float, agent_name: str | None = None) -> list[Path]:
+    """Return output files created/modified after `since` (epoch seconds).
+
+    When *agent_name* is provided and maps to a known output subdirectory,
+    only that subdirectory is scanned — preventing parallel sessions from
+    picking up each other's files.
+    """
+    if agent_name and agent_name in _AGENT_OUTPUT_DIRS:
+        scan_root = OUTPUTS_DIR / _AGENT_OUTPUT_DIRS[agent_name]
+    else:
+        scan_root = OUTPUTS_DIR
+    if not scan_root.is_dir():
+        return []
     found: list[Path] = []
     grace = 3.0
-    for p in OUTPUTS_DIR.rglob("*"):
+    for p in scan_root.rglob("*"):
         if not p.is_file():
             continue
         if any(part in _SKIP_DIRS for part in p.parts):
@@ -77,6 +106,7 @@ def _find_new_outputs(since: float) -> list[Path]:
 # =============================================================================
 # Main application
 # =============================================================================
+
 
 async def main() -> None:
     OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -117,9 +147,7 @@ async def main() -> None:
         )
         return UserInputResponse(answer=answer, wasFreeform=was_freeform)
 
-    async def on_prompt_submitted(
-        input_data: dict, invocation: dict
-    ) -> dict | None:
+    async def on_prompt_submitted(input_data: dict, invocation: dict) -> dict | None:
         return None
 
     # ── Client & session ──────────────────────────────────────────────────────
@@ -136,7 +164,7 @@ async def main() -> None:
             "  [bold]Fix:[/bold] pass your GitHub token when starting the container:\n\n"
             "    [cyan]docker run -it --rm \\\\\n"
             "      -e GITHUB_TOKEN=$(gh auth token) \\\\\n"
-            "      -v \"$(pwd)/outputs:/app/outputs\" \\\\\n"
+            '      -v "$(pwd)/outputs:/app/outputs" \\\\\n'
             "      csa-copilot[/cyan]\n\n"
             "  If [cyan]gh auth token[/cyan] fails, run [cyan]gh auth login[/cyan] first.\n"
         )
@@ -168,7 +196,9 @@ async def main() -> None:
             rpc_client = getattr(client, "_client", None)
             if rpc_client and hasattr(rpc_client, "get_stderr_output"):
                 stderr = rpc_client.get_stderr_output() or ""
-            return False, f"exited with code {rc}" + (f"\n  stderr: {stderr}" if stderr else "")
+            return False, f"exited with code {rc}" + (
+                f"\n  stderr: {stderr}" if stderr else ""
+            )
         return True, f"pid={proc.pid}"
 
     ui._cli_health_check = _check_cli_health
@@ -317,7 +347,9 @@ async def main() -> None:
                         ui.current_agent = arg
                         ui.current_model = DEFAULT_MODEL
                         event_store.update_session_agent(session.session_id, arg)
-                        event_store.update_session_model(session.session_id, DEFAULT_MODEL)
+                        event_store.update_session_model(
+                            session.session_id, DEFAULT_MODEL
+                        )
                         ui.print_success(f"Switched to {arg} (model: {DEFAULT_MODEL})")
                     except Exception as exc:
                         ui.print_error(f"Failed to switch agent: {exc}")
@@ -326,7 +358,9 @@ async def main() -> None:
                 elif cmd == "/debug":
                     new_state = ui.toggle_debug()
                     if new_state:
-                        ui.print_success("Debug mode ON  -  tool I/O, subagent flow, token usage visible")
+                        ui.print_success(
+                            "Debug mode ON  -  tool I/O, subagent flow, token usage visible"
+                        )
                     else:
                         ui.print_success("Debug mode OFF")
                     continue
@@ -365,7 +399,9 @@ async def main() -> None:
                     )
 
                     result = handle_sessions(
-                        arg, event_store, ui.console,
+                        arg,
+                        event_store,
+                        ui.console,
                         current_session_id=session.session_id if session else None,
                     )
                     if result == _CURRENT_SESSION_ENDED:
@@ -376,7 +412,9 @@ async def main() -> None:
                     from commands.usage import handle_usage
 
                     handle_usage(
-                        arg, event_store, ui.console,
+                        arg,
+                        event_store,
+                        ui.console,
                         session_id=session.session_id if session else None,
                         current_agent=ui.current_agent,
                         current_model=ui.current_model,
@@ -458,7 +496,9 @@ async def main() -> None:
                             continue
                         # Success - detach old session
                         if session:
-                            collector.on_session_ended(session.session_id, resumable=True)
+                            collector.on_session_ended(
+                                session.session_id, resumable=True
+                            )
                             with contextlib.suppress(Exception):
                                 session._event_handlers.clear()
                         session = new_session
@@ -467,8 +507,12 @@ async def main() -> None:
                         turns = event_store.get_turns(full_id)
                         if turns:
                             last_turn = turns[-1]
-                            raw_agent = last_turn.get("agent") or s_detail.get("agent", "")
-                            ui.current_model = last_turn.get("model") or s_detail.get("model", DEFAULT_MODEL)
+                            raw_agent = last_turn.get("agent") or s_detail.get(
+                                "agent", ""
+                            )
+                            ui.current_model = last_turn.get("model") or s_detail.get(
+                                "model", DEFAULT_MODEL
+                            )
                         else:
                             raw_agent = s_detail.get("agent", "") or ""
                             ui.current_model = s_detail.get("model", DEFAULT_MODEL)
@@ -523,11 +567,15 @@ async def main() -> None:
                                 f"{freed:,} tokens freed"
                             )
                         else:
-                            ui.print_warning("Compaction completed but reported no success.")
+                            ui.print_warning(
+                                "Compaction completed but reported no success."
+                            )
                     except Exception as exc:
                         msg = str(exc)
                         if "Nothing to compact" in msg:
-                            ui.print_info("Nothing to compact - context is already minimal.")
+                            ui.print_info(
+                                "Nothing to compact - context is already minimal."
+                            )
                         else:
                             ui.print_error(f"Compaction failed: {exc}")
                     continue
@@ -570,9 +618,7 @@ async def main() -> None:
             clean_prompt = user_input
             if user_input.startswith("@"):
                 clean_prompt = (
-                    user_input.split(" ", 1)[1]
-                    if " " in user_input
-                    else user_input
+                    user_input.split(" ", 1)[1] if " " in user_input else user_input
                 )
 
             # ── Record user input for history replay ──────────────────────
@@ -672,6 +718,32 @@ async def main() -> None:
                     status="cancelled",
                 )
                 continue
+            except Exception as exc:
+                turn_status = "error"
+                ui.print_response_end()
+                ui.stop_agent_display()
+                ui.print_input_lock_state(False)
+                msg = str(exc)
+                if "not authorized" in msg.lower() or "policy" in msg.lower():
+                    ui.console.print(
+                        f"\n  [red bold]ERROR:[/red bold] [red]{msg}[/red]\n\n"
+                        "  Your GITHUB_TOKEN may lack Copilot API scopes.\n"
+                        "  If running in Docker, ensure the token comes from a\n"
+                        "  Copilot-authorized source (e.g. VS Code devcontainer\n"
+                        "  GITHUB_TOKEN) rather than [cyan]gh auth token[/cyan].\n"
+                    )
+                else:
+                    ui.print_warning(
+                        f"Unexpected error: {msg}. "
+                        "Use /new to start a fresh session or quit."
+                    )
+                collector.on_turn_end(
+                    turn_id,
+                    assistant_response="".join(ui._current_response),
+                    model=ui.current_model,
+                    status="error",
+                )
+                continue
 
             if not ui.received_deltas and reply:
                 content = getattr(reply.data, "content", None)
@@ -682,7 +754,7 @@ async def main() -> None:
             ui.print_response_end()
 
             # ── Notify about any newly generated output files ─────────────
-            new_files = _find_new_outputs(before_time)
+            new_files = _find_new_outputs(before_time, agent_name)
             ui.print_output_files(new_files)
 
             ui.stop_agent_display()
@@ -721,6 +793,7 @@ async def main() -> None:
 # Entry point
 # =============================================================================
 
+
 def main_entry() -> None:
     """Synchronous entry point (for pyproject.toml console_scripts)."""
     parser = argparse.ArgumentParser(description="CSA Copilot")
@@ -753,6 +826,14 @@ async def _server_main(port: int) -> None:
     """Start the FastAPI + uvicorn server for the Electron desktop frontend."""
     import uvicorn
     from server import app as fastapi_app, configure as server_configure
+
+    verbose_backend_logs = os.environ.get("CSA_BACKEND_DEV_LOG") == "1"
+
+    if verbose_backend_logs:
+        logging.basicConfig(
+            level=logging.INFO,
+            format="[backend] %(asctime)s %(levelname)s %(name)s: %(message)s",
+        )
 
     # Pick a free port if port == 0
     if port == 0:
@@ -794,8 +875,8 @@ async def _server_main(port: int) -> None:
         fastapi_app,
         host="127.0.0.1",
         port=port,
-        log_level="warning",
-        access_log=False,
+        log_level="info" if verbose_backend_logs else "warning",
+        access_log=verbose_backend_logs,
     )
     server = uvicorn.Server(config)
     try:

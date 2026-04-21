@@ -91,6 +91,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_sessions_nickname
 
 _MIGRATIONS: list[str] = [
     "ALTER TABLE sessions ADD COLUMN nickname TEXT",
+    "ALTER TABLE invocations ADD COLUMN subagent_name TEXT",
+    "ALTER TABLE turns ADD COLUMN output_files TEXT NOT NULL DEFAULT '[]'",
 ]
 
 
@@ -207,9 +209,7 @@ class EventStore:
     def get_session(self, session_id: str) -> dict | None:
         return self._fetchone("SELECT * FROM sessions WHERE id=?", (session_id,))
 
-    def resolve_prefix(
-        self, table: str, prefix: str
-    ) -> str | None:
+    def resolve_prefix(self, table: str, prefix: str) -> str | None:
         """Resolve an ID prefix to a full ID in the given table.
 
         Returns the full ID if exactly one row matches, else ``None``.
@@ -295,9 +295,7 @@ class EventStore:
         )
         self._commit()
 
-    def set_nickname(
-        self, session_id: str, nickname: str | None
-    ) -> None:
+    def set_nickname(self, session_id: str, nickname: str | None) -> None:
         """Set or clear a session nickname.
 
         Raises ``ValueError`` on invalid format or duplicate.
@@ -306,7 +304,9 @@ class EventStore:
             nickname = nickname.strip().lower()
             if not nickname:
                 nickname = None
-            elif len(nickname) > 30 or not re.fullmatch(r"[a-z0-9][a-z0-9_-]*", nickname):
+            elif len(nickname) > 30 or not re.fullmatch(
+                r"[a-z0-9][a-z0-9_-]*", nickname
+            ):
                 raise ValueError(
                     "Nickname must be 1-30 chars: lowercase letters, digits, "
                     "hyphens, underscores (must start with letter/digit)."
@@ -404,9 +404,17 @@ class EventStore:
             "estimated_cost_usd=?, tool_call_count=?, subagent_count=?, status=? "
             "WHERE id=?",
             (
-                assistant_response, now, duration_ms,
-                input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
-                estimated_cost_usd, tool_call_count, subagent_count, status,
+                assistant_response,
+                now,
+                duration_ms,
+                input_tokens,
+                output_tokens,
+                cache_read_tokens,
+                cache_write_tokens,
+                estimated_cost_usd,
+                tool_call_count,
+                subagent_count,
+                status,
                 turn_id,
             ),
         )
@@ -435,6 +443,15 @@ class EventStore:
         )
         self._commit()
 
+    def set_turn_output_files(self, turn_id: str, files: list[str]) -> None:
+        import json
+
+        self._execute(
+            "UPDATE turns SET output_files=? WHERE id=?",
+            (json.dumps(files), turn_id),
+        )
+        self._commit()
+
     # ── Invocations ───────────────────────────────────────────────────────
 
     def record_invocation(
@@ -445,13 +462,23 @@ class EventStore:
         inv_type: str,
         name: str = "",
         input_data: str = "{}",
+        subagent_name: str | None = None,
     ) -> str:
         inv_id = _new_id()
         self._execute(
             "INSERT INTO invocations "
-            "(id, turn_id, session_id, type, name, input, started_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (inv_id, turn_id, session_id, inv_type, name, input_data, _now_iso()),
+            "(id, turn_id, session_id, type, name, input, started_at, subagent_name) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                inv_id,
+                turn_id,
+                session_id,
+                inv_type,
+                name,
+                input_data,
+                _now_iso(),
+                subagent_name,
+            ),
         )
         self._commit()
         return inv_id
@@ -480,9 +507,7 @@ class EventStore:
         self._commit()
 
     def get_invocation(self, invocation_id: str) -> dict | None:
-        return self._fetchone(
-            "SELECT * FROM invocations WHERE id=?", (invocation_id,)
-        )
+        return self._fetchone("SELECT * FROM invocations WHERE id=?", (invocation_id,))
 
     def get_invocations_for_turn(self, turn_id: str) -> list[dict]:
         return self._fetchall(
@@ -515,7 +540,5 @@ class EventStore:
             (cutoff_iso,),
         )
         # Delete old sessions
-        self._execute(
-            "DELETE FROM sessions WHERE started_at < ?", (cutoff_iso,)
-        )
+        self._execute("DELETE FROM sessions WHERE started_at < ?", (cutoff_iso,))
         self._commit()

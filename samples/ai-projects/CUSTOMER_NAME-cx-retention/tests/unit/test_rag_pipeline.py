@@ -6,12 +6,12 @@ prompt build -> stream LLM. All external dependencies are mocked.
 
 from __future__ import annotations
 
-from typing import AsyncGenerator, Optional
-from unittest.mock import AsyncMock, MagicMock, patch
+from typing import Optional
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.models.schemas import BillData, LineItem, ModelClassification, SearchResult
+from app.models.schemas import BillData, ModelClassification, SearchResult
 from app.services.billing_api import BillingAPIError
 from app.services.rag_pipeline import RAGPipeline
 
@@ -88,7 +88,9 @@ def pipeline(
     )
 
 
-async def _collect_tokens(pipeline: RAGPipeline, **kwargs) -> tuple[list[str], Optional[ModelClassification]]:  # type: ignore[no-untyped-def]
+async def _collect_tokens(
+    pipeline: RAGPipeline, **kwargs
+) -> tuple[list[str], Optional[ModelClassification]]:  # type: ignore[no-untyped-def]
     """Helper to collect all tokens from process_query."""
     tokens: list[str] = []
     classification = None

@@ -7,9 +7,7 @@ with mocked ConversationManager.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock
 
-import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -19,9 +17,7 @@ from app.models.schemas import MessageResponse, SessionResponse
 class TestGetSession:
     """Test GET /api/v1/sessions/{session_id}."""
 
-    def test_get_session(
-        self, test_app: FastAPI, test_client: TestClient
-    ) -> None:
+    def test_get_session(self, test_app: FastAPI, test_client: TestClient) -> None:
         """Known session ID returns session data with 200."""
         conversation_manager = test_app.state.conversation_manager
         now = datetime.now(timezone.utc)
@@ -68,9 +64,7 @@ class TestGetSession:
 class TestDeleteSession:
     """Test DELETE /api/v1/sessions/{session_id}."""
 
-    def test_delete_session(
-        self, test_app: FastAPI, test_client: TestClient
-    ) -> None:
+    def test_delete_session(self, test_app: FastAPI, test_client: TestClient) -> None:
         """Successful deletion returns 204."""
         conversation_manager = test_app.state.conversation_manager
         conversation_manager.delete_session.return_value = True
@@ -78,7 +72,9 @@ class TestDeleteSession:
         response = test_client.delete("/api/v1/sessions/session-to-delete")
 
         assert response.status_code == 204
-        conversation_manager.delete_session.assert_awaited_once_with("session-to-delete")
+        conversation_manager.delete_session.assert_awaited_once_with(
+            "session-to-delete"
+        )
 
     def test_delete_session_not_found(
         self, test_app: FastAPI, test_client: TestClient

@@ -20,22 +20,20 @@ def collector(store):
 
 
 class TestSessionLifecycle:
-
     def test_on_session_created(self, collector, store):
         collector.on_session_created("s1", agent="test-agent", model="gpt-4o")
         session = store.get_session("s1")
         assert session is not None
         assert session["agent"] == "test-agent"
         assert session["model"] == "gpt-4o"
-        assert collector._current_session_id == "s1"
 
     def test_on_session_ended(self, collector, store):
         collector.on_session_created("s1")
+        collector.on_turn_start("s1")
         collector.on_session_ended("s1")
         session = store.get_session("s1")
         assert session["status"] == "ended"
-        assert collector._current_session_id is None
-        assert collector._current_turn_id is None
+        assert "s1" not in collector._session_turns
 
     def test_on_session_ended_resumable(self, collector, store):
         collector.on_session_created("s1")
@@ -45,18 +43,20 @@ class TestSessionLifecycle:
 
     def test_on_session_ended_different_session(self, collector, store):
         collector.on_session_created("s1")
+        collector.on_turn_start("s1")
         collector.on_session_ended("other")
-        # Current session ID should NOT be cleared since it's a different session
-        assert collector._current_session_id == "s1"
+        # s1's turn should still be tracked
+        assert "s1" in collector._session_turns
 
 
 class TestTurnLifecycle:
-
     def test_on_turn_start(self, collector, store):
         collector.on_session_created("s1")
-        turn_id = collector.on_turn_start("s1", agent="a1", model="m1", user_prompt="hello")
+        turn_id = collector.on_turn_start(
+            "s1", agent="a1", model="m1", user_prompt="hello"
+        )
         assert turn_id is not None
-        assert collector._current_turn_id == turn_id
+        assert collector._session_turns["s1"] == turn_id
         turn = store.get_turn(turn_id)
         assert turn["user_prompt"] == "hello"
 
@@ -74,30 +74,32 @@ class TestTurnLifecycle:
         turn = store.get_turn(turn_id)
         assert turn["assistant_response"] == "response"
         assert turn["status"] == "success"
-        assert collector._current_turn_id is None
+        assert "s1" not in collector._session_turns
         # Session counters should be updated
         session = store.get_session("s1")
         assert session["turn_count"] == 1
 
     def test_on_turn_end_different_turn(self, collector, store):
-        """Ending a turn that isn't the current one shouldn't clear _current_turn_id."""
+        """Ending a turn that isn't the current one shouldn't clear the other session's turn."""
         collector.on_session_created("s1")
+        collector.on_session_created("s2")
         t1 = collector.on_turn_start("s1")
-        t2 = collector.on_turn_start("s1")
-        # Current turn is t2
+        t2 = collector.on_turn_start("s2")
+        # End s1's turn
         collector.on_turn_end(t1, model="gpt-4o")
-        # t2 should still be current
-        assert collector._current_turn_id == t2
+        # s2's turn should still be tracked
+        assert collector._session_turns["s2"] == t2
 
 
 class TestUsageUpdate:
-
     def test_on_usage(self, collector, store):
         collector.on_session_created("s1")
         turn_id = collector.on_turn_start("s1", model="gpt-4o")
         collector.on_usage(
-            input_tokens=500, output_tokens=200,
-            cache_read_tokens=100, cache_write_tokens=50,
+            input_tokens=500,
+            output_tokens=200,
+            cache_read_tokens=100,
+            cache_write_tokens=50,
             model="gpt-4o",
         )
         turn = store.get_turn(turn_id)
@@ -110,7 +112,6 @@ class TestUsageUpdate:
 
 
 class TestToolInvocations:
-
     def test_on_tool_start(self, collector, store):
         collector.on_session_created("s1")
         turn_id = collector.on_turn_start("s1")
@@ -141,7 +142,6 @@ class TestToolInvocations:
 
 
 class TestSubagentInvocations:
-
     def test_on_subagent_start(self, collector, store):
         collector.on_session_created("s1")
         turn_id = collector.on_turn_start("s1")
@@ -167,3 +167,36 @@ class TestSubagentInvocations:
 
     def test_on_subagent_end_none(self, collector):
         collector.on_subagent_end(None)
+
+
+class TestSubagentNamePassthrough:
+    def test_on_tool_start_with_subagent_name(self, collector, store):
+        """on_tool_start should pass subagent_name to record_invocation."""
+        collector.on_session_created("s-sa1", agent="test")
+        collector.on_turn_start("s-sa1", agent="test", user_prompt="test")
+        inv_id = collector.on_tool_start("search_web", "{}", subagent_name="researcher")
+        assert inv_id is not None
+        inv = store.get_invocation(inv_id)
+        assert inv["subagent_name"] == "researcher"
+
+    def test_on_tool_start_without_subagent_name(self, collector, store):
+        """on_tool_start without subagent_name should store None."""
+        collector.on_session_created("s-sa2", agent="test")
+        collector.on_turn_start("s-sa2", agent="test", user_prompt="test")
+        inv_id = collector.on_tool_start("search_web", "{}")
+        assert inv_id is not None
+        inv = store.get_invocation(inv_id)
+        assert inv.get("subagent_name") is None
+
+
+class TestAssistantResponsePersistence:
+    def test_on_turn_end_stores_assistant_response(self, collector, store):
+        """on_turn_end should persist assistant_response to the turns table."""
+        collector.on_session_created("s-resp1", agent="test")
+        tid = collector.on_turn_start("s-resp1", agent="test", user_prompt="hi")
+        collector.on_turn_end(
+            tid, assistant_response="Hello, how can I help?", model="gpt-4o"
+        )
+        turn = store.get_turn(tid)
+        assert turn is not None
+        assert turn["assistant_response"] == "Hello, how can I help?"

@@ -1,0 +1,298 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap");
+
+:root {
+  --brand-primary: #0078d4;
+  --brand-dark: #12121a;
+  --brand-light: #f5f5f5;
+  --surface: #ffffff;
+  --surface-dark: #1e1e2e;
+  --accent-orange: #f25022;
+  --accent-green: #7fba00;
+  --accent-blue: #00a4ef;
+  --accent-yellow: #ffb900;
+  --text-primary: #323130;
+  --text-secondary: #605e5c;
+  --border: #edebe9;
+  --border-hover: #c8c6c4;
+  --hover-bg: #faf9f8;
+  --card-bg: #ffffff;
+  --sidebar-bg: #ffffff;
+  --sidebar-width: 260px;
+  --sidebar-collapsed: 56px;
+  --topbar-height: 0px;
+}
+
+[data-theme="dark"] {
+  --brand-light: #1a1a2e;
+  --surface: #1e1e2e;
+  --text-primary: #e0e0e0;
+  --text-secondary: #a0a0a0;
+  --border: #2d2d3f;
+  --border-hover: #3d3d52;
+  --hover-bg: #252538;
+  --card-bg: #24243a;
+  --sidebar-bg: #1a1a2e;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  font-family: "DM Sans", "Segoe UI Variable", "Segoe UI", -apple-system,
+    BlinkMacSystemFont, sans-serif;
+  color: var(--text-primary);
+  background: var(--brand-light);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #c8c6c4;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a19f9d;
+}
+
+/* Code blocks */
+pre,
+code {
+  font-family: "Cascadia Code", "Fira Code", "JetBrains Mono", monospace;
+}
+
+pre {
+  background: var(--brand-dark) !important;
+  color: #d4d4d4;
+  border-radius: 8px;
+  padding: 16px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+code:not(pre code) {
+  background: rgba(0, 120, 212, 0.08);
+  color: var(--brand-primary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+/* Markdown rendered content */
+.md-content h1 { font-size: 1.8rem; font-weight: 700; margin: 1.5rem 0 0.75rem; line-height: 1.35; }
+.md-content h2 { font-size: 1.4rem; font-weight: 600; margin: 1.25rem 0 0.5rem; border-bottom: 1px solid #edebe9; padding-bottom: 0.3rem; }
+.md-content h3 { font-size: 1.15rem; font-weight: 600; margin: 1rem 0 0.4rem; }
+.md-content p { margin: 0.5rem 0; line-height: 1.65; }
+.md-content ul, .md-content ol { margin: 0.5rem 0 0.5rem 1.5rem; }
+.md-content li { margin: 0.25rem 0; line-height: 1.6; }
+.md-content table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+.md-content th, .md-content td { border: 1px solid #edebe9; padding: 8px 12px; text-align: left; }
+.md-content th { background: var(--brand-light); font-weight: 600; }
+.md-content blockquote { border-left: 3px solid var(--brand-primary); padding: 0.5rem 1rem; margin: 0.75rem 0; background: rgba(0,120,212,0.04); }
+.md-content img { max-width: 100%; border-radius: 8px; }
+.md-content a { color: var(--brand-primary); text-decoration: none; }
+.md-content a:hover { text-decoration: underline; }
+
+/* Highlight.js overrides */
+.hljs { background: transparent !important; }
+
+/* Animations */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Completion toast — slide in from right */
+@keyframes toast-slide-in {
+  from { opacity: 0; transform: translateX(80px) scale(0.95); }
+  to   { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+/* Completion toast — countdown progress bar */
+@keyframes toast-progress {
+  from { width: 100%; }
+  to   { width: 0%; }
+}
+
+@keyframes pulseAttention {
+  0%, 100% { box-shadow: 0 0 4px 1px rgba(255, 185, 0, 0.4); opacity: 1; }
+  50% { box-shadow: 0 0 8px 4px rgba(255, 185, 0, 0.7); opacity: 0.8; }
+}
+
+.pulse-attention {
+  animation: pulseAttention 1.5s ease-in-out infinite;
+}
+
+/* Stadium wave ("ola") effect — blue sweep across text (left to right) */
+@keyframes stadiumWave {
+  0% { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
+.wave-text {
+  background: linear-gradient(
+    90deg,
+    var(--text-primary) 0%,
+    var(--text-primary) 35%,
+    #0078d4 45%,
+    #00a4ef 50%,
+    #0078d4 55%,
+    var(--text-primary) 65%,
+    var(--text-primary) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: stadiumWave 2.5s ease-in-out infinite;
+}
+
+/* Top status bar — running (blue wave, left to right) */
+@keyframes topBarWave {
+  0% { background-position: 200% center; }
+  100% { background-position: -100% center; }
+}
+
+.top-status-bar-running {
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    transparent 30%,
+    #0078d4 40%,
+    #00a4ef 50%,
+    #0078d4 60%,
+    transparent 70%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: topBarWave 2s ease-in-out infinite;
+}
+
+/* Top status bar — waiting (yellow wave, left to right) */
+@keyframes topBarWaveYellow {
+  0% { background-position: 200% center; }
+  100% { background-position: -100% center; }
+}
+
+.top-status-bar-waiting {
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    transparent 30%,
+    #FFB900 40%,
+    #FFD700 50%,
+    #FFB900 60%,
+    transparent 70%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: topBarWaveYellow 2s ease-in-out infinite;
+}
+
+.animate-in {
+  animation: fadeInUp 0.35s ease-out both;
+}
+
+/* Hide scrollbar for carousel containers */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Tutorial Overlay ──────────────────────────────────────────────── */
+
+.tutorial-overlay {
+  animation: tutorialFadeIn 0.25s ease-out;
+}
+
+@keyframes tutorialFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.tutorial-card {
+  animation: tutorialCardIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes tutorialCardIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.tutorial-spotlight-ring {
+  animation: tutorialRingPulse 2s ease-in-out infinite;
+}
+
+@keyframes tutorialRingPulse {
+  0%, 100% { box-shadow: 0 0 12px 2px rgba(0, 120, 212, 0.25); }
+  50% { box-shadow: 0 0 24px 6px rgba(0, 120, 212, 0.45); }
+}
+
+/* ── Responsive: narrow desktop / side-by-side windows ─────────── */
+
+@media (max-width: 960px) {
+  .page-container {
+    padding: 24px 20px !important;
+  }
+  .content-grid-3 {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  .pipeline-row {
+    flex-wrap: wrap !important;
+  }
+  .pipeline-row > .pipeline-arrow {
+    display: none !important;
+  }
+  .pipeline-row > div {
+    flex: 1 1 calc(50% - 8px) !important;
+    min-width: 200px !important;
+  }
+  .stats-bar {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .page-container {
+    padding: 16px 12px !important;
+  }
+  .content-grid-3 {
+    grid-template-columns: 1fr !important;
+  }
+  .pipeline-row > div {
+    flex: 1 1 100% !important;
+  }
+  .header-row {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+  .header-row .search-input {
+    width: 100% !important;
+    order: 10;
+  }
+}

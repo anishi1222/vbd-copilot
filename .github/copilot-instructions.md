@@ -57,11 +57,12 @@ Skills live in `skills/<skill-name>/` directories. Each skill has a `SKILL.md` a
 2. All AI project artifacts go under `outputs/ai-projects/<project-slug>/` - never in the repo root
 3. All hackathon artifacts go under `outputs/hackathons/<event-slug>/` - never in the repo root
 4. **Test coverage must be at least 80%** - run `pytest --cov` and verify the `fail_under = 80` threshold passes before merging
-4. When you write text, always ensure that is sounds human through the skill that you have for that
+5. When you write text, always ensure that is sounds human through the skill that you have for that
 
 ## Landmines
 
 - Use `uv` instead of `pip` for all Python dependency operations
+- **Frontend icons:** Never use emoji (🚀, 🏗️, etc.) in the frontend UI — always use Fluent UI `@fluentui/react-icons` components instead. The `AgentIcon` component in `frontend/src/components/common/AgentIcon.tsx` is the canonical icon renderer for agents. The emoji `icon` field in `AGENT_META` is legacy metadata only — it is never rendered in the UI.
 - Do not refactor `skills/pptx-generator/pptx_utils.py` - it is a shared contract across all subagents
 - Fragment files in `outputs/slides/.fragments/` are unindented by design - do not auto-format them
 - Plan files in `plans/` are intermediate and may be incomplete - do not treat them as ground truth
@@ -69,3 +70,4 @@ Skills live in `skills/<skill-name>/` directories. Each skill has a `SKILL.md` a
 - Agent definitions are organized in subfolders (`slides/`, `demos/`, `ai-project/`, `hackathons/`) - the loader scans recursively
 - Challenge files in `outputs/hackathons/` use `challenge-{NN}` numbering - do not renumber or skip
 - Azure service skills in `skills/azure-*` are from the `microsoft/azure-skills` repo - do not modify them directly
+- before running python commands, source the `venv` with `source .venv/bin/activate` to ensure dependencies are available
