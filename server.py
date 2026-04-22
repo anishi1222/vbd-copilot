@@ -364,7 +364,6 @@ async def resume_session(session_id: str, body: ResumeSessionRequest) -> JSONRes
                     expected_request_id=request_id,
                 )
             except asyncio.TimeoutError:
-                answer = ""
                 timed_out = True
             finally:
                 set_pending_input(full_id, None)
