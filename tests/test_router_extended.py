@@ -185,24 +185,21 @@ class TestRouteToAgent:
         mock_session.rpc.model.switch_to.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_returns_current_agent_when_no_match(self):
+    async def test_returns_none_when_no_agent_detected(self):
+        """route_to_agent returns None (not a blocking RPC call) when no agent matched."""
         mock_session = AsyncMock()
-        mock_agent = SimpleNamespace(name="existing-agent")
-        mock_session.rpc.agent.get_current = AsyncMock(
-            return_value=SimpleNamespace(agent=mock_agent)
-        )
-
-        with patch("router.detect_agent", new_callable=AsyncMock, return_value=None):
-            result = await route_to_agent(mock_session, "Hello")
-        assert result == "existing-agent"
-
-    @pytest.mark.asyncio
-    async def test_returns_none_when_no_current_agent(self):
-        mock_session = AsyncMock()
-        mock_session.rpc.agent.get_current = AsyncMock(
-            return_value=SimpleNamespace(agent=None)
-        )
 
         with patch("router.detect_agent", new_callable=AsyncMock, return_value=None):
             result = await route_to_agent(mock_session, "Hello")
         assert result is None
+        mock_session.rpc.agent.get_current.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_returns_none_for_generic_prompt(self):
+        """Generic prompts like 'hi' never block on get_current."""
+        mock_session = AsyncMock()
+
+        with patch("router.detect_agent", new_callable=AsyncMock, return_value=None):
+            result = await route_to_agent(mock_session, "hi")
+        assert result is None
+        mock_session.rpc.agent.get_current.assert_not_called()

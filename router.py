@@ -7,140 +7,87 @@ are activated by the conductors via delegation tools.
 
 Routing strategy:
 1. Explicit prefix:  "@slide-conductor ...", "@demo-conductor ..."
-2. LLM-based intent classification via a dedicated Copilot SDK
-   classifier session (uses GPT-4.1 through the CLI runtime).
+2. Keyword-based intent classification scored against agent names + descriptions.
 3. Fallback: no agent is selected (uses the default Copilot agent).
 """
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import re
-from typing import Any
 
 from copilot import CopilotClient, CopilotSession
-from copilot.generated.session_events import SessionEventType
-from copilot.types import PermissionRequest, PermissionRequestResult
 
 from agents import DEFAULT_MODEL, ROUTABLE_AGENTS
 
+# Stop-words to ignore when scoring keyword overlap
+_STOP_WORDS = {
+    "a", "an", "the", "and", "or", "of", "to", "in", "for", "on", "with",
+    "is", "it", "this", "that", "any", "all", "how", "what", "can", "i",
+    "me", "my", "do", "you", "please", "create", "make", "build", "generate",
+    "new", "some", "want", "need", "get", "give", "show", "using", "use",
+}
+
 logger = logging.getLogger(__name__)
 
-# ── Classifier session state ──────────────────────────────────────────────────
+# ── Keyword-based intent classifier ──────────────────────────────────────────
+#
+# The Copilot SDK uses a local CLI subprocess on non-Codespaces environments,
+# which cannot multiplex concurrent sessions.  Creating a second session for
+# LLM-based routing blocks indefinitely because the subprocess is already
+# occupied by the main conversation session.
+#
+# Instead we score the prompt against each routable agent's name tokens and
+# description tokens.  For a small, well-named agent catalog this is accurate
+# enough and adds zero latency.
 
-_ROUTING_MODEL = "gpt-4.1"
+def _tokenize(text: str) -> set[str]:
+    """Lower-case word tokens, stop-words removed."""
+    return {
+        w
+        for w in re.findall(r"[a-z]+", text.lower())
+        if w not in _STOP_WORDS and len(w) > 2
+    }
 
-_copilot_client: CopilotClient | None = None
-_classifier_session: CopilotSession | None = None
-_classifier_lock = asyncio.Lock()
 
-
-def _build_system_prompt() -> str:
-    """Build the classification system prompt from the routable agent catalog."""
-    lines = [
-        "You are an intent classifier. Given a user message, decide which "
-        "agent should handle it. Reply with ONLY the agent name (lowercase, "
-        "exactly as listed) or the word none if no agent is a good fit.",
-        "",
-        "Available agents:",
-    ]
+def _build_agent_tokens() -> dict[str, set[str]]:
+    """Pre-compute a token set for every routable agent (name + description)."""
+    result: dict[str, set[str]] = {}
     for name, cfg in ROUTABLE_AGENTS.items():
-        desc = cfg.get("description", "")
-        lines.append(f"- {name}: {desc}")
-
-    lines.extend(
-        [
-            "",
-            "Rules:",
-            "- Pick the single best-matching agent.",
-            "- If the message is general conversation, a greeting, or does not "
-            "clearly match any agent, reply none.",
-            "- Reply with the agent name only, no extra text.",
-        ]
-    )
-    return "\n".join(lines)
+        tokens = _tokenize(name) | _tokenize(cfg.get("description", ""))
+        result[name] = tokens
+    return result
 
 
-async def init_router(client: CopilotClient) -> None:
-    """Store the CopilotClient reference for classifier session creation."""
-    global _copilot_client
-    _copilot_client = client
+_AGENT_TOKENS: dict[str, set[str]] = {}
 
 
-async def _auto_approve(
-    request: PermissionRequest, invocation: dict[str, str]
-) -> PermissionRequestResult:
-    return PermissionRequestResult(kind="approved")
+async def init_router(client: CopilotClient) -> None:  # noqa: ARG001
+    """Pre-compute routing token sets (client kept for API compatibility)."""
+    global _AGENT_TOKENS
+    _AGENT_TOKENS = _build_agent_tokens()
 
 
-async def _ensure_classifier() -> CopilotSession:
-    """Lazily create (or recreate) a lightweight classifier session."""
-    global _classifier_session
-    async with _classifier_lock:
-        if _classifier_session is not None:
-            return _classifier_session
-
-        if _copilot_client is None:
-            raise RuntimeError("Router not initialised - call init_router() first")
-
-        _classifier_session = await _copilot_client.create_session(
-            {
-                "model": _ROUTING_MODEL,
-                "streaming": True,
-                "system_message": {
-                    "mode": "replace",
-                    "content": _build_system_prompt(),
-                },
-                "on_permission_request": _auto_approve,
-            }
-        )
-        return _classifier_session
-
-
-async def _classify_intent(prompt: str) -> str | None:
-    """Use the Copilot SDK classifier session to pick the right agent."""
-    try:
-        session = await _ensure_classifier()
-
-        # Collect streamed deltas for this turn
-        response_parts: list[str] = []
-
-        def _on_event(event: Any) -> None:
-            if event.type in (
-                SessionEventType.ASSISTANT_MESSAGE_DELTA,
-                SessionEventType.ASSISTANT_STREAMING_DELTA,
-            ):
-                delta = getattr(event.data, "delta_content", None) or ""
-                if delta:
-                    response_parts.append(delta)
-
-        unsubscribe = session.on(_on_event)
-        try:
-            reply = await session.send_and_wait({"prompt": prompt}, timeout=15)
-        finally:
-            unsubscribe()
-
-        # Prefer streamed text; fall back to reply content
-        answer = "".join(response_parts).strip().lower()
-        if not answer and reply:
-            content = getattr(reply.data, "content", None)
-            if content:
-                answer = content.strip().lower()
-
-        if answer in ROUTABLE_AGENTS:
-            return answer
+def _classify_intent(prompt: str) -> str | None:
+    """Return the best-matching routable agent name, or None."""
+    if not _AGENT_TOKENS:
         return None
 
-    except Exception:
-        # On any failure, discard the session so a fresh one is created next time
-        global _classifier_session
-        _classifier_session = None
-        logger.warning(
-            "LLM routing via Copilot SDK failed, falling back to no agent",
-            exc_info=True,
-        )
+    prompt_tokens = _tokenize(prompt)
+    if not prompt_tokens:
         return None
+
+    best_agent: str | None = None
+    best_score = 0
+
+    for name, agent_tokens in _AGENT_TOKENS.items():
+        overlap = len(prompt_tokens & agent_tokens)
+        if overlap > best_score:
+            best_score = overlap
+            best_agent = name
+
+    # Require at least one meaningful keyword match
+    return best_agent if best_score >= 1 else None
 
 
 async def detect_agent(prompt: str) -> str | None:
@@ -155,8 +102,8 @@ async def detect_agent(prompt: str) -> str | None:
         if name in ROUTABLE_AGENTS:
             return name
 
-    # 2. LLM-based intent classification via Copilot SDK
-    return await _classify_intent(prompt)
+    # 2. Keyword-based intent classification
+    return _classify_intent(prompt)
 
 
 async def route_to_agent(session: CopilotSession, prompt: str) -> str | None:
@@ -178,7 +125,8 @@ async def route_to_agent(session: CopilotSession, prompt: str) -> str | None:
         )
         return agent_name
     else:
-        current = await session.rpc.agent.get_current()
-        if current.agent is not None:
-            return current.agent.name
+        # Do NOT call session.rpc.agent.get_current() here — it blocks indefinitely
+        # on the CLI subprocess in WSL (and other non-Codespaces environments) when
+        # no agent-switch RPC is pending.  The caller (app.py) already tracks the
+        # active agent in ui.current_agent and preserves it across turns.
         return None

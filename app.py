@@ -172,6 +172,33 @@ async def main() -> None:
 
     client = CopilotClient(client_opts or None)
     await client.start()
+
+    # ── Auth check ────────────────────────────────────────────────────────────
+    # The CLI subprocess silently drops messages when unauthenticated (no error
+    # event, no session.idle — just permanent silence).  Detect this early so
+    # the user gets a clear message instead of an infinite hang.
+    try:
+        auth_result = await client._client.request("auth.getStatus", {})
+        if not auth_result.get("isAuthenticated"):
+            ui.console.print(
+                "\n  [red bold]ERROR: Copilot CLI is not authenticated.[/red bold]\n\n"
+                "  The CLI cannot reach the LLM backend without valid credentials.\n"
+                "  Messages will hang indefinitely until this is resolved.\n\n"
+                "  [bold]Fix (pick one):[/bold]\n\n"
+                "    [cyan]1.[/cyan] Run the Copilot CLI login:\n"
+                "        [cyan]copilot login[/cyan]\n"
+                "        (browser-based OAuth — stores token in ~/.copilot/)\n\n"
+                "    [cyan]2.[/cyan] Set an environment variable:\n"
+                "        [cyan]export GITHUB_TOKEN=$(gh auth token)[/cyan]\n"
+                "        (requires [cyan]gh auth login[/cyan] first)\n\n"
+                "    [cyan]3.[/cyan] Use a fine-grained PAT with the 'Copilot Requests' permission:\n"
+                "        [cyan]export COPILOT_GITHUB_TOKEN=github_pat_...[/cyan]\n"
+            )
+            await client.stop()
+            return
+    except Exception:
+        pass  # If we can't check, proceed and let it fail naturally
+
     await init_router(client)
 
     # ── Cache model context-window limits ─────────────────────────────────────
@@ -858,6 +885,25 @@ async def _server_main(port: int) -> None:
 
     client = CopilotClient(client_opts or None)
     await client.start()
+
+    # ── Auth check (same as CLI mode) ─────────────────────────────────────
+    try:
+        auth_result = await client._client.request("auth.getStatus", {})
+        if not auth_result.get("isAuthenticated"):
+            print(
+                "\n  ERROR: Copilot CLI is not authenticated.\n"
+                "  The backend cannot reach the LLM without valid credentials.\n\n"
+                "  Fix (pick one):\n"
+                "    1. copilot login\n"
+                "    2. export GITHUB_TOKEN=$(gh auth token)\n"
+                "    3. export COPILOT_GITHUB_TOKEN=github_pat_...\n",
+                flush=True,
+            )
+            await client.stop()
+            return
+    except Exception:
+        pass
+
     await init_router(client)
 
     server_configure(
