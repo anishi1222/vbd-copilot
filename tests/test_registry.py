@@ -111,3 +111,53 @@ class TestCatalogEmpty:
         assert cat.routable_agents == {}
         assert cat.agent_configs_list == []
         assert cat.skill_dirs == []
+
+
+# ---------------------------------------------------------------------------
+# refresh()
+# ---------------------------------------------------------------------------
+
+
+class TestCatalogRefresh:
+    def test_refresh_no_change_returns_false(self, catalog, skill_dirs):
+        """refresh() with identical agents must return False."""
+        same_agents = list(catalog.agent_configs_list)
+        assert catalog.refresh(same_agents) is False
+
+    def test_refresh_added_agent_returns_true(self, catalog, skill_dirs):
+        agents = list(catalog.agent_configs_list)
+        agents.append(_make_agent("new-agent", infer=True))
+        changed = catalog.refresh(agents)
+        assert changed is True
+        assert "new-agent" in catalog.all_agents
+        assert "new-agent" in catalog.routable_agents
+
+    def test_refresh_removed_agent_returns_true(self, catalog, skill_dirs):
+        agents = [a for a in catalog.agent_configs_list if a.name != "slide-conductor"]
+        changed = catalog.refresh(agents)
+        assert changed is True
+        assert "slide-conductor" not in catalog.all_agents
+
+    def test_refresh_updates_routable_set(self, catalog, skill_dirs):
+        # Make research-subagent routable by replacing it with infer=True
+        agents = [
+            a if a.name != "research-subagent" else _make_agent("research-subagent", infer=True)
+            for a in catalog.agent_configs_list
+        ]
+        catalog.refresh(agents)
+        assert "research-subagent" in catalog.routable_agents
+
+    def test_refresh_picks_up_new_skill_dir(self, catalog, skill_dirs):
+        """refresh() must discover a new subdirectory added to skills/."""
+        (skill_dirs / "new-skill").mkdir()
+        same_agents = list(catalog.agent_configs_list)
+        changed = catalog.refresh(same_agents)
+        assert changed is True
+        assert any("new-skill" in d for d in catalog.skill_dirs)
+
+    def test_refresh_false_when_skill_dir_unchanged(self, catalog, skill_dirs):
+        same_agents = list(catalog.agent_configs_list)
+        # First call records current state
+        catalog.refresh(same_agents)
+        # Second call with nothing changed should be False
+        assert catalog.refresh(same_agents) is False

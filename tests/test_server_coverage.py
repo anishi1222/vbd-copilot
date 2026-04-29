@@ -47,6 +47,7 @@ def _reset_globals(tmp_path):
     server_mod._app_dir = tmp_path
     server_mod._outputs_dir = tmp_path / "outputs"
     server_mod._outputs_dir.mkdir()
+    server_mod._outputs_cache = server_mod._OutputsCache()
 
     yield store
 
@@ -57,6 +58,7 @@ def _reset_globals(tmp_path):
     server_mod._outputs_dir = old["outputs_dir"]
     server_mod._session_map.clear()
     server_mod._session_map.update(old["session_map"])
+    server_mod._outputs_cache = server_mod._OutputsCache()
 
 
 @pytest.fixture()

@@ -34,6 +34,7 @@ class AgentCatalog:
     ) -> None:
         self._default_model = default_model
         self._default_timeout = default_timeout
+        self._skills_dir = skills_dir
         self._agents: dict[str, AgentConfig] = {}
         self._routable: dict[str, AgentConfig] = {}
 
@@ -79,3 +80,28 @@ class AgentCatalog:
 
     def get_timeout_for(self, agent_name: str) -> int:  # noqa: ARG002
         return self._default_timeout
+
+    # -- Hot-reload ------------------------------------------------------------
+
+    def refresh(self, agents: list[AgentConfig]) -> bool:
+        """Rebuild the catalog from a new agent list and re-scan skill dirs.
+
+        Compares the incoming agent map and skill directory list against the
+        current state.  Returns ``True`` if anything changed, ``False`` when
+        the catalog is already up-to-date (cheap early-exit).
+        """
+        new_agents: dict[str, AgentConfig] = {a.name: a for a in agents}
+        try:
+            new_skill_dirs = sorted(
+                str(p) for p in self._skills_dir.iterdir() if p.is_dir()
+            )
+        except OSError:
+            new_skill_dirs = list(self._skill_dirs)
+
+        if new_agents == self._agents and new_skill_dirs == self._skill_dirs:
+            return False
+
+        self._agents = new_agents
+        self._routable = {n: a for n, a in new_agents.items() if a.infer}
+        self._skill_dirs = new_skill_dirs
+        return True

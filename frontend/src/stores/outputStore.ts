@@ -13,6 +13,7 @@ interface OutputStore {
   viewMode: "grid" | "list";
 
   fetch: () => Promise<void>;
+  fetchForce: () => Promise<void>;
   setCategoryFilter: (c: string) => void;
   setSearchQuery: (q: string) => void;
   setViewMode: (m: "grid" | "list") => void;
@@ -31,6 +32,26 @@ export const useOutputStore = create<OutputStore>((set, get) => ({
   viewMode: "grid",
 
   fetch: async () => {
+    // Skip the network round-trip if data is less than 5 s old.
+    // The OutputLibrary page also subscribes to job outputFiles changes and
+    // calls fetch() when new files arrive — that path bypasses this guard via
+    // fetchForce() so fresh outputs always land immediately.
+    const { lastFetched } = get();
+    if (lastFetched > 0 && Date.now() - lastFetched < 5_000) return;
+
+    set({ loading: true, error: null });
+    try {
+      const [outputs, grouped] = await Promise.all([
+        listOutputs(),
+        listGroupedOutputs(),
+      ]);
+      set({ outputs, grouped, loading: false, lastFetched: Date.now() });
+    } catch (e: any) {
+      set({ error: e.message, loading: false });
+    }
+  },
+
+  fetchForce: async () => {
     set({ loading: true, error: null });
     try {
       const [outputs, grouped] = await Promise.all([

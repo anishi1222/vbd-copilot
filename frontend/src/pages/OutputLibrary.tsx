@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { useJobStore } from "@/stores/jobStore";
 import {
   Text,
   Card,
@@ -89,6 +90,7 @@ export function OutputLibrary() {
     searchQuery,
     viewMode,
     fetch: fetchOutputs,
+    fetchForce,
     setCategoryFilter,
     setSearchQuery,
     setViewMode,
@@ -118,6 +120,19 @@ export function OutputLibrary() {
   useEffect(() => {
     fetchOutputs();
   }, []);
+
+  // Re-fetch whenever any job delivers new output files (triggered by the
+  // server's "new_files" WebSocket event landing in the job store).
+  const totalOutputFiles = useJobStore(
+    (s) => Object.values(s.jobs).reduce((n, j) => n + j.outputFiles.length, 0),
+  );
+  const prevOutputFilesRef = useRef(totalOutputFiles);
+  useEffect(() => {
+    if (totalOutputFiles > prevOutputFilesRef.current) {
+      fetchForce();  // bypass TTL — new files just arrived
+    }
+    prevOutputFilesRef.current = totalOutputFiles;
+  }, [totalOutputFiles, fetchForce]);
 
   useEffect(() => {
     if (deleteTarget && deleteBannerRef.current) {

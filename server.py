@@ -723,9 +723,93 @@ def _classify_output_category(path: Path) -> str:
     return "other"
 
 
-@app.get("/outputs")
-async def list_outputs() -> JSONResponse:
-    outputs_resolved = _outputs_dir.resolve()
+class _OutputsCache:
+    """Mtime-based cache for the outputs directory scan.
+
+    Staleness is detected with ``stat()`` calls only — no file reads.
+    A directory mtime changes whenever a file is created, renamed, or
+    deleted inside it, so tracking every subdirectory is sufficient to
+    catch all structural changes.  Individual file mtimes catch in-place
+    modifications (e.g. a .pptx overwritten in-place).
+
+    Both ``/outputs`` (flat list) and ``/outputs/grouped`` results are
+    cached together and invalidated atomically — a single staleness check
+    serves both endpoints.
+    """
+
+    def __init__(self) -> None:
+        self._flat: list[dict] | None = None
+        self._grouped: list[dict] | None = None
+        self._dir_mtimes: dict[Path, float] = {}
+        self._file_mtimes: dict[Path, float] = {}
+
+    def _snapshot(self, outputs_dir: Path) -> tuple[dict[Path, float], dict[Path, float]]:
+        """Collect current mtimes for all dirs and tracked files under outputs_dir."""
+        dirs: dict[Path, float] = {}
+        files: dict[Path, float] = {}
+        try:
+            dirs[outputs_dir] = outputs_dir.stat().st_mtime
+        except OSError:
+            return dirs, files
+        for p in outputs_dir.rglob("*"):
+            try:
+                if p.is_dir():
+                    dirs[p] = p.stat().st_mtime
+                elif p.is_file():
+                    suffix = p.suffix.lower()
+                    if suffix in _FILE_TYPE_MAP and not any(
+                        part in _SKIP_DIRS for part in p.parts
+                    ):
+                        files[p] = p.stat().st_mtime
+            except OSError:
+                pass
+        return dirs, files
+
+    def is_stale(self, outputs_dir: Path) -> bool:
+        """Return True if anything under outputs_dir has changed.
+
+        Uses only ``stat()`` — no file content reads.
+        """
+        if self._flat is None:
+            return True
+        for d, cached in self._dir_mtimes.items():
+            try:
+                if d.stat().st_mtime != cached:
+                    return True
+            except OSError:
+                return True
+        for f, cached in self._file_mtimes.items():
+            try:
+                if f.stat().st_mtime != cached:
+                    return True
+            except OSError:
+                return True
+        return False
+
+    def set(
+        self,
+        outputs_dir: Path,
+        flat: list[dict],
+        grouped: list[dict],
+    ) -> None:
+        self._flat = flat
+        self._grouped = grouped
+        self._dir_mtimes, self._file_mtimes = self._snapshot(outputs_dir)
+
+    @property
+    def flat(self) -> list[dict] | None:
+        return self._flat
+
+    @property
+    def grouped(self) -> list[dict] | None:
+        return self._grouped
+
+
+_outputs_cache = _OutputsCache()
+
+
+def _build_outputs_flat(outputs_resolved: Path) -> list[dict]:
+    """Scan outputs/ and return the flat file list (no caching logic here)."""
     results = []
     for p in outputs_resolved.rglob("*"):
         if not p.is_file():
@@ -754,7 +838,20 @@ async def list_outputs() -> JSONResponse:
             }
         )
     results.sort(key=lambda x: x["modified"], reverse=True)
-    return JSONResponse(content=results)
+    return results
+
+
+@app.get("/outputs")
+async def list_outputs() -> JSONResponse:
+    outputs_resolved = _outputs_dir.resolve()
+    if not _outputs_cache.is_stale(outputs_resolved):
+        return JSONResponse(content=_outputs_cache.flat)
+    # Cache is stale — rebuild both at once so a back-to-back call to
+    # /outputs/grouped can reuse the same scan without hitting disk again.
+    flat = _build_outputs_flat(outputs_resolved)
+    grouped = _build_outputs_grouped(outputs_resolved)
+    _outputs_cache.set(outputs_resolved, flat, grouped)
+    return JSONResponse(content=flat)
 
 
 @app.get("/outputs/grouped")
@@ -766,9 +863,19 @@ async def list_outputs_grouped() -> JSONResponse:
     - hackathons: each subfolder is a deliverable
     - ai-projects: each subfolder is a deliverable
     """
+    outputs_resolved = _outputs_dir.resolve()
+    if not _outputs_cache.is_stale(outputs_resolved):
+        return JSONResponse(content=_outputs_cache.grouped)
+    flat = _build_outputs_flat(outputs_resolved)
+    grouped = _build_outputs_grouped(outputs_resolved)
+    _outputs_cache.set(outputs_resolved, flat, grouped)
+    return JSONResponse(content=grouped)
+
+
+def _build_outputs_grouped(outputs_resolved: Path) -> list[dict]:  # noqa: PLR0912, PLR0915
+    """Scan outputs/ and return grouped deliverables (no caching logic here)."""
     import re as _re
 
-    outputs_resolved = _outputs_dir.resolve()
     groups: list[dict] = []
 
     # ── Slides ────────────────────────────────────────────────
@@ -996,7 +1103,7 @@ async def list_outputs_grouped() -> JSONResponse:
             )
 
     groups.sort(key=lambda x: x["modified"], reverse=True)
-    return JSONResponse(content=groups)
+    return groups
 
 
 # ---------------------------------------------------------------------------

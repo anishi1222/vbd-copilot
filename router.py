@@ -68,6 +68,19 @@ async def init_router(client: CopilotClient) -> None:  # noqa: ARG001
     _AGENT_TOKENS = _build_agent_tokens()
 
 
+def _maybe_refresh() -> None:
+    """Check for agent file changes and rebuild routing tokens if anything changed.
+
+    Called once per turn.  The hot path is just a few ``stat()`` syscalls —
+    file content is never re-read unless an mtime actually changed.
+    """
+    global _AGENT_TOKENS
+    from agents import refresh_catalog
+
+    if refresh_catalog():
+        _AGENT_TOKENS = _build_agent_tokens()
+
+
 def _classify_intent(prompt: str) -> str | None:
     """Return the best-matching routable agent name, or None."""
     if not _AGENT_TOKENS:
@@ -95,6 +108,8 @@ async def detect_agent(prompt: str) -> str | None:
     Determine which top-level agent should handle the prompt.
     Returns the agent name, or None to use the default Copilot agent.
     """
+    _maybe_refresh()
+
     # 1. Explicit @mention
     mention = re.match(r"^@([\w-]+)\s", prompt)
     if mention:
