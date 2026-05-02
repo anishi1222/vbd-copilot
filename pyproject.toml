@@ -53,6 +53,10 @@ omit = [
     "plans/*",
 ]
 
+[tool.uv]
+# onnxruntime 1.20.1 (pulled in by magika) has no cp314 wheel; 1.25.1+ does.
+override-dependencies = ["onnxruntime>=1.25.1"]
+
 [tool.coverage.report]
 fail_under = 80
 show_missing = true

@@ -270,7 +270,7 @@ export function BriefForm({ agent, onClose, onJobCreated, initialBrief }: BriefF
               value={level}
               onChange={(_, d) => setLevel(d.value as ContentLevel)}
             >
-              {CONTENT_LEVELS.map((l) => (
+              {CONTENT_LEVELS.filter((l) => (agent !== "hackathon-conductor" && agent !== "demo-conductor") || l !== "L100").map((l) => (
                 <Radio
                   key={l}
                   value={l}
