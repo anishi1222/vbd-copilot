@@ -205,7 +205,7 @@ export function Launchpad() {
               Experimental Interface
             </Text>
             <Text size={200} style={{ color: "#6B3A00CC", display: "block", marginTop: 2, lineHeight: 1.45 }}>
-              The Desktop / Web UI is experimental — it works for most flows but may have rough edges, missing features, or unexpected behaviour. The CLI is the stable, battle-tested path. Fall back to it if something breaks.
+              The Desktop / Web UI is experimental — it works for most flows but may have rough edges or unexpected behaviour. Fall back to CLI if something breaks.
             </Text>
           </div>
         </div>
