@@ -16,6 +16,7 @@ from tools import (
     RunInfraQaChecksParams,
     RunPipelineQaChecksParams,
     RunDocsQaChecksParams,
+    RunHackathonQaChecksParams,
 )
 
 
@@ -241,3 +242,50 @@ class TestQaToolParamValidation:
     def test_docs_qa_params(self):
         p = RunDocsQaChecksParams(project_dir="/tmp/proj")
         assert p.project_slug == ""
+
+    def test_qa_params_default_language_is_en(self):
+        """All language-aware QA params default to 'en' for backward compat."""
+        assert (
+            RunPptxQaChecksParams(pptx_path="/tmp/x.pptx", expected_slides=5).language
+            == "en"
+        )
+        assert RunDemoQaChecksParams(guide_path="/tmp/g.md").language == "en"
+        assert RunDocsQaChecksParams(project_dir="/tmp/p").language == "en"
+        assert RunHackathonQaChecksParams(hackathon_dir="/tmp/h").language == "en"
+
+    def test_qa_params_accept_language_ja(self):
+        """Each language-aware QA params class accepts language='ja'."""
+        assert (
+            RunPptxQaChecksParams(
+                pptx_path="/tmp/x.pptx", expected_slides=5, language="ja"
+            ).language
+            == "ja"
+        )
+        assert (
+            RunDemoQaChecksParams(guide_path="/tmp/g.md", language="ja").language
+            == "ja"
+        )
+        assert (
+            RunDocsQaChecksParams(project_dir="/tmp/p", language="ja").language == "ja"
+        )
+        assert (
+            RunHackathonQaChecksParams(
+                hackathon_dir="/tmp/h", language="ja"
+            ).language
+            == "ja"
+        )
+
+    def test_qa_params_reject_unknown_language(self):
+        """Literal['en','ja'] rejects other values at validation time."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            RunPptxQaChecksParams(
+                pptx_path="/tmp/x.pptx", expected_slides=5, language="fr"
+            )
+        with pytest.raises(ValidationError):
+            RunDemoQaChecksParams(guide_path="/tmp/g.md", language="zh")
+        with pytest.raises(ValidationError):
+            RunDocsQaChecksParams(project_dir="/tmp/p", language="es")
+        with pytest.raises(ValidationError):
+            RunHackathonQaChecksParams(hackathon_dir="/tmp/h", language="de")
