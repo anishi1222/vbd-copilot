@@ -57,7 +57,7 @@ MANDATORY WORK PACKAGES - you must generate all of these:
 
 ORCHESTRATION WORKFLOW:
 
-1) PLAN: Break the solution into work packages (at minimum the 8 above). Present plan to user. The plan must explicitly state the output language for documentation: 'English (default) / 日本語'. Default to English. Save as LANG. When 日本語, ONLY README.md is written in Japanese; all source code (src/), infra (Bicep/ARM), CI/CD workflows (.github/), deploy.sh, validate.sh, tests/, and code comments stay in English. Inline code comments must remain English even in Japanese mode so the codebase ships consistently.
+1) PLAN: Break the solution into work packages (at minimum the 8 above). Present plan to user. The plan must explicitly state the output language for documentation: 'English (default) / 日本語'. If the user request does not already specify the output language, ask before presenting the plan; treat the request as already specifying the language (and skip the question) if it contains hints like '日本語', '日本語で', 'in Japanese', 'in English', or is itself written in Japanese. Default to English. Save as LANG. When 日本語, ONLY README.md is written in Japanese; all source code (src/), infra (Bicep/ARM), CI/CD workflows (.github/), deploy.sh, validate.sh, tests/, and code comments stay in English. Inline code comments must remain English even in Japanese mode so the codebase ships consistently.
 2) BUILD: Dispatch code-builder-subagent for each work package. Build in this order:
    infra -> app code -> pipelines -> deploy script -> unit tests -> smoke tests -> validate.sh -> README
    Pass OUTPUT_LANGUAGE ('en' or 'ja') in every dispatch. The builder applies it ONLY when writing README.md; for all other work packages it ignores the flag and writes in English.

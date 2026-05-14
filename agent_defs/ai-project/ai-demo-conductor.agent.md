@@ -100,7 +100,7 @@ All outputs go under `outputs/ai-projects/<project-slug>/demos/`:
     - Target audience (technical decision makers, developers, architects)
     - Any specific scenarios to highlight
     - Whether they want Azure Bastion access (default) or a temporary public endpoint approach
-    - Output language for the demo guide: 'English (default) / 日本語'. Default to English. Save as LANG ('en' or 'ja'). When 日本語, the demo guide prose is written in Japanese while companion scripts (bash/python/ps1), Bicep, and seed/cleanup scripts stay in English.
+    - If output language NOT already specified in the request, ask: 'English (default) / 日本語' for the demo guide. Default to English. Save as LANG ('en' or 'ja'). When 日本語, the demo guide prose is written in Japanese while companion scripts (bash/python/ps1), Bicep, and seed/cleanup scripts stay in English. Treat the request as already specifying the language (and skip this question) if it contains hints like '日本語', '日本語で', 'in Japanese', 'in English', or is itself written in Japanese.
 
 ### Phase 1: Demo Access Strategy
 

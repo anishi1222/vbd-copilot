@@ -67,7 +67,7 @@ A complete hackathon folder at outputs/hackathons/{event-slug}/ containing:
     - Desired duration OR number of challenges
     - Customer or partner context (who is this hackathon for?)
     - Any specific scenarios or learning objectives to cover
-    - Output language ('English (default)' / '日本語') if not already specified. Default to English. Save as LANG ('en' or 'ja'). When 'ja', README.md, challenges/*.md, coach/*.md, and resources/*.md are written in Japanese; .devcontainer/ files, code blocks, Bicep, scripts, and shell commands stay in English.
+    - Output language ('English (default)' / '日本語') if not already specified. Default to English. Save as LANG ('en' or 'ja'). When 'ja', README.md, challenges/*.md, coach/*.md, and resources/*.md are written in Japanese; .devcontainer/ files, code blocks, Bicep, scripts, and shell commands stay in English. Treat the request as already specifying the language (and skip this bullet) if it contains hints like '日本語', '日本語で', 'in Japanese', 'in English', or is itself written in Japanese.
 0C. Confirm understanding with a summary that includes the chosen output language.
 
 DO NOT proceed to Phase 1 until the user explicitly approves.

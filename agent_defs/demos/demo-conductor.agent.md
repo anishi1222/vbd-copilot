@@ -58,7 +58,7 @@ Always batch independent task calls into a single response. Max 5 task calls per
 0B. After pre-research, use ask_user. Always ask: Customer name, Number of demos, Demo level (L200/L300/L400). Optionally: technology focus, time per demo, constraints.
 0C. Demo Level: L200 (10min), L300 (15min), L400 (20-30min per demo)
 0D. Demo count guidance: recommend 3-4 demos at L300, 2-3 at L400, or 4-5 at L200 for a 1-hour session. Total demo time should not exceed 80% of session time (reserve 20% for setup/transitions). If the user specifies a count, use it.
-0E. If output language NOT specified in the request, ask: 'English (default) / 日本語'. Default to English if the user skips. Save the choice as LANG ('en' or 'ja'); this drives the demo guide language, the QA language flag, and the OUTPUT_LANGUAGE passed to every subagent. Companion scripts (bash/python/yaml) stay in English regardless.
+0E. If output language NOT specified in the request, ask: 'English (default) / 日本語'. Default to English if the user skips. Save the choice as LANG ('en' or 'ja'); this drives the demo guide language, the QA language flag, and the OUTPUT_LANGUAGE passed to every subagent. Companion scripts (bash/python/yaml) stay in English regardless. Treat the request as already specifying the language (and skip this question) if it contains hints like '日本語', '日本語で', 'in Japanese', 'in English', or is itself written in Japanese.
 0F. Confirm understanding with a summary that includes the chosen output language.
 
 ### Phase 1: Deep Research
