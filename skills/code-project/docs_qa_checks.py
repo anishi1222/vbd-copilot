@@ -143,6 +143,30 @@ EMOJI_RE = re.compile(
 
 EM_DASH_RE = re.compile(r"\u2014")
 
+# Japanese AI tells -- formulaic phrases. Detected only when language='ja'.
+JAPANESE_AI_TELL_PATTERNS = [
+    (re.compile(r"\u3068\u8a00\u3048\u308b\u3067\u3057\u3087\u3046"),
+     "Hedging cliche '\u3068\u8a00\u3048\u308b\u3067\u3057\u3087\u3046'"),
+    (re.compile(r"\u306b\u3064\u3044\u3066\u8ff0\u3079\u307e\u3059"),
+     "Formulaic narration '\u306b\u3064\u3044\u3066\u8ff0\u3079\u307e\u3059'"),
+    (re.compile(r"\u304c\u6328\u3052\u3089\u308c\u307e\u3059"),
+     "Formulaic enumeration '\u304c\u6328\u3052\u3089\u308c\u307e\u3059'"),
+    (re.compile(r"\u3059\u308b\u3053\u3068\u304c\u3067\u304d\u307e\u3059"),
+     "Verbose construction '\u3059\u308b\u3053\u3068\u304c\u3067\u304d\u307e\u3059' (use '\u3067\u304d\u307e\u3059')"),
+    (re.compile(r"\u3059\u308b\u3053\u3068\u304c\u53ef\u80fd\u3067\u3059"),
+     "Verbose construction '\u3059\u308b\u3053\u3068\u304c\u53ef\u80fd\u3067\u3059' (use '\u3067\u304d\u307e\u3059')"),
+    (re.compile(r"\u3068\u8003\u3048\u3089\u308c\u307e\u3059"),
+     "Vague hedge '\u3068\u8003\u3048\u3089\u308c\u307e\u3059'"),
+    (re.compile(r"\u3068\u8a00\u3063\u3066\u3082\u904e\u8a00\u3067\u306f\u3042\u308a\u307e\u305b\u3093"),
+     "Cliche hyperbole '\u3068\u8a00\u3063\u3066\u3082\u904e\u8a00\u3067\u306f\u3042\u308a\u307e\u305b\u3093'"),
+    (re.compile(r"\u4ee5\u4e0a\u306e\u3053\u3068\u304b\u3089"),
+     "Formulaic conclusion '\u4ee5\u4e0a\u306e\u3053\u3068\u304b\u3089'"),
+]
+
+_JA_POLITE_RE = re.compile(r"(\u3067\u3059\u3002|\u307e\u3059\u3002|\u307e\u3057\u305f\u3002)")
+_JA_PLAIN_RE = re.compile(r"(\u3060\u3002|\u3067\u3042\u308b\u3002|\u3060\u3063\u305f\u3002|\u3067\u3042\u3063\u305f\u3002)")
+_JA_MIXED_THRESHOLD = 3
+
 # ── Helper: collect project file tree ─────────────────────────────────────────
 
 
@@ -459,6 +483,82 @@ def check_em_dashes(project_dir: str) -> list[dict]:
     return issues
 
 
+def check_japanese_ai_tells(project_dir: str) -> list[dict]:
+    """Detect formulaic Japanese AI tells in README and docs/ markdown."""
+    issues: list[dict] = []
+    targets: list[str] = []
+    readme_path = os.path.join(project_dir, "README.md")
+    if os.path.exists(readme_path):
+        targets.append(readme_path)
+    docs_dir = os.path.join(project_dir, "docs")
+    if os.path.isdir(docs_dir):
+        for root, _dirs, files in os.walk(docs_dir):
+            for fname in files:
+                if fname.endswith(".md"):
+                    targets.append(os.path.join(root, fname))
+
+    for fpath in targets:
+        rel = os.path.relpath(fpath, project_dir)
+        try:
+            with open(fpath, "r", encoding="utf-8", errors="replace") as f:
+                text = f.read()
+        except Exception:
+            continue
+        for line_num, line in enumerate(text.splitlines(), 1):
+            for pattern, label in JAPANESE_AI_TELL_PATTERNS:
+                for match in pattern.finditer(line):
+                    issues.append(
+                        {
+                            "file": rel,
+                            "severity": "MAJOR",
+                            "check": "japanese_ai_tell",
+                            "message": (
+                                f"{label} at line {line_num}: "
+                                f"{line.strip()[:100]}"
+                            ),
+                        }
+                    )
+    return issues
+
+
+def check_japanese_mixed_styles(project_dir: str) -> list[dict]:
+    """Per file: flag mixing of polite (\u3067\u3059/\u307e\u3059) and plain (\u3060/\u3067\u3042\u308b) registers."""
+    issues: list[dict] = []
+    targets: list[str] = []
+    readme_path = os.path.join(project_dir, "README.md")
+    if os.path.exists(readme_path):
+        targets.append(readme_path)
+    docs_dir = os.path.join(project_dir, "docs")
+    if os.path.isdir(docs_dir):
+        for root, _dirs, files in os.walk(docs_dir):
+            for fname in files:
+                if fname.endswith(".md"):
+                    targets.append(os.path.join(root, fname))
+
+    for fpath in targets:
+        rel = os.path.relpath(fpath, project_dir)
+        try:
+            with open(fpath, "r", encoding="utf-8", errors="replace") as f:
+                text = f.read()
+        except Exception:
+            continue
+        polite = len(_JA_POLITE_RE.findall(text))
+        plain = len(_JA_PLAIN_RE.findall(text))
+        if polite >= _JA_MIXED_THRESHOLD and plain >= _JA_MIXED_THRESHOLD:
+            issues.append(
+                {
+                    "file": rel,
+                    "severity": "MINOR",
+                    "check": "japanese_mixed_styles",
+                    "message": (
+                        f"Mixes polite ({polite}) and plain ({plain}) "
+                        f"sentence endings - pick one register"
+                    ),
+                }
+            )
+    return issues
+
+
 def check_demo_guide_quality(project_dir: str) -> list[dict]:
     """Check that the demo guide has concrete examples, not just instructions."""
     issues = []
@@ -514,14 +614,26 @@ def check_demo_guide_quality(project_dir: str) -> list[dict]:
 # ── Main runner ───────────────────────────────────────────────────────────────
 
 
-def run_all_checks(project_dir: str, project_slug: str | None = None) -> dict:
-    """Run all docs QA checks and return a structured report."""
+def run_all_checks(
+    project_dir: str,
+    project_slug: str | None = None,
+    *,
+    language: str = "en",
+) -> dict:
+    """Run all docs QA checks and return a structured report.
+
+    ``language`` selects locale-specific behaviour:
+      - ``"en"`` (default): em-dash check is enforced.
+      - ``"ja"``: em-dash check is skipped; Japanese AI tell + mixed-style
+        checks are added.
+    """
 
     if not os.path.isdir(project_dir):
         return {
             "status": "ERROR",
             "project_dir": project_dir,
             "project_slug": project_slug,
+            "language": language,
             "issues": [
                 {
                     "file": project_dir,
@@ -543,9 +655,20 @@ def run_all_checks(project_dir: str, project_slug: str | None = None) -> dict:
         ("validate_script_docs", lambda: check_validate_script_docs(project_dir)),
         ("placeholders", lambda: check_placeholders(project_dir)),
         ("emoji", lambda: check_emoji(project_dir)),
-        ("em_dashes", lambda: check_em_dashes(project_dir)),
         ("demo_guide_quality", lambda: check_demo_guide_quality(project_dir)),
     ]
+    if language == "ja":
+        checks.append(
+            ("japanese_ai_tells", lambda: check_japanese_ai_tells(project_dir))
+        )
+        checks.append(
+            (
+                "japanese_mixed_styles",
+                lambda: check_japanese_mixed_styles(project_dir),
+            )
+        )
+    else:
+        checks.append(("em_dashes", lambda: check_em_dashes(project_dir)))
 
     for check_name, check_fn in checks:
         try:
@@ -578,6 +701,7 @@ def run_all_checks(project_dir: str, project_slug: str | None = None) -> dict:
         "status": status,
         "project_dir": project_dir,
         "project_slug": project_slug,
+        "language": language,
         "issues": all_issues,
         "issues_by_file": {k: v for k, v in sorted(by_file.items())},
         "summary": dict(summary),
@@ -628,13 +752,19 @@ if __name__ == "__main__":
         help="Project slug for context",
     )
     parser.add_argument(
+        "--language",
+        choices=["en", "ja"],
+        default="en",
+        help="Output language; 'ja' skips em-dash check and adds Japanese checks",
+    )
+    parser.add_argument(
         "--json",
         action="store_true",
         help="Output JSON instead of text",
     )
     args = parser.parse_args()
 
-    report = run_all_checks(args.project_dir, args.project_slug)
+    report = run_all_checks(args.project_dir, args.project_slug, language=args.language)
 
     if args.json:
         print(json.dumps(report, indent=2, default=str))
