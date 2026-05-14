@@ -247,6 +247,70 @@ When auditing: name the pattern → explain why it reads as AI → give the spec
 
 ---
 
+## Japanese Output Mode
+
+When the calling agent or user is producing Japanese content (e.g. a slide deck, demo guide, or README built with `OUTPUT_LANGUAGE: ja`), apply this Japanese-specific rubric INSTEAD of the English filler/hedging rules above. The English rules still apply to any English text mixed into the Japanese content.
+
+See [references/japanese-ai-tells.md](references/japanese-ai-tells.md) for the comprehensive Japanese AI tells checklist with rewrite patterns.
+
+### Japanese AI Tell Categories
+
+**1. Hedging tails (formal closer)** 🔴
+- 「〜と言えるでしょう」「〜と言っても過言ではありません」「〜と考えられます」
+- 「〜の可能性が示唆されます」
+- Fix: state the claim directly. "AKS is the right choice for X" rather than "AKS is the right choice for X と言えるでしょう".
+
+**2. Filler openers** 🔴
+- 「〜について述べます」「〜について解説します」「〜についてご説明します」
+- Fix: drop the meta-statement. Just deliver the content.
+
+**3. Formal listing** 🟡
+- 「〜が挙げられます」「〜などが代表的です」
+- Fix: name the items directly. "The three options are A, B, C."
+
+**4. Translation tells** 🔴
+- 「〜することができます」「〜することが可能です」 → 「〜できます」
+- 「〜を行う」「〜を実施する」 → use the verb directly
+- 「〜という形で」「〜のような形で」 → drop the hedge
+
+**5. Formal closer** 🟡
+- 「以上のことから〜」「したがいまして〜」「結論として〜」at start of every paragraph
+- Fix: vary openers, or drop them entirely
+
+**6. Suffix stacking** 🟡
+- Excessive 「〜的」: 「効率的に効果的に戦略的に」 → pick one
+- Excessive 「〜化」: 「最適化、効率化、自動化、可視化」 in one sentence → pick the one that matters
+
+**7. Mixed registers** 🔴
+- ですます (polite) and だ/である (plain) mixed within one slide, paragraph, or section
+- Fix: pick ONE register per document and stay consistent. For customer-facing materials default to ですます; for technical reference content だ/である is acceptable but must be uniform.
+
+**8. Sentence rhythm** 🟡
+- Same length sentences in a row: "〜です。〜です。〜です。"
+- Fix: vary length. Short, then long. Like in English.
+- Same ending particle three times in a row (です/ます/ました all repeated): break the pattern with a different construction.
+
+**9. Generic authority** 🔴
+- 「一般的に〜と言われています」「多くの企業では〜」without a citation
+- Fix: name a specific Microsoft service, product, or customer scenario.
+
+### Humanity Heuristics for Japanese
+
+- Vary sentence length: long, then short. Like this. (短く。)
+- Use direct address (「あなた」「お客様」) sparingly but deliberately
+- Be specific: name the actual Azure service, the real KQL query, the concrete metric. Avoid 「多くの企業」「さまざまな業界」
+- Allow imperfection in spoken-style speaker notes: 「実は、」「ちょっと待ってください、」reads human
+- Avoid stiff conjunctions at sentence-start: 「したがって、」「また、」「さらに、」 every paragraph
+
+### Japanese Self-Check
+
+After writing, re-read the content and ask:
+- Could ANY sentence appear unchanged in generic AI output about any topic? Rewrite it to reference THIS specific scenario.
+- Is the register consistent (all ですます or all だ/である)?
+- Are there 3+ Japanese AI tells from the categories above? If yes, rewrite the worst offenders.
+
+---
+
 ## Related Skills
 
 - **content-production**: Use to produce the initial draft. Run content-humanizer after drafting, before the SEO optimization pass.
