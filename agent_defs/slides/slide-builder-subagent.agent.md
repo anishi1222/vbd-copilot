@@ -165,11 +165,31 @@ Speaker notes are full presenter transcripts. Write them as a real person talkin
 
 After writing the fragment, re-read all text content and speaker notes. If any sentence could appear unchanged in generic AI output about any topic, rewrite it to be specific to THIS presentation.
 
+## Output Language Handling
+
+The Conductor passes `OUTPUT_LANGUAGE: en` or `OUTPUT_LANGUAGE: ja` in the task prompt. Default to `en` if absent.
+
+When `OUTPUT_LANGUAGE: ja`:
+
+- Write slide titles, bullet text, card/callout text, table cell text, and speaker notes in natural Japanese
+- Keep these in English even in Japanese mode: product/service names ('Azure Container Apps', 'Microsoft Foundry'), Azure SKU IDs, code blocks (T.add_code_block content), CLI commands, file/path names, URLs, configuration keys, and the python-pptx variable names you write in the fragment
+- Never put Japanese inside `T.add_code_block(...)` strings - monospace alignment breaks. Place Japanese commentary in adjacent bullet points or speaker notes instead
+- Drop em-dashes from body text but still avoid decorative '──' runs
+- Avoid these Japanese AI tells (substitute with concrete, declarative phrasing):
+  - 「〜と言えるでしょう」「〜と言っても過言ではありません」「〜と考えられます」 (hedging tail)
+  - 「〜について述べます」「〜について解説します」 (filler opener)
+  - 「〜が挙げられます」 (formal listing)
+  - 「〜することができます」「〜することが可能です」 → use 「〜できます」
+  - 「以上のことから」 (formal closer)
+  - Excessive 「〜的」「〜化」 stacking
+- Pick ONE register per slide and stay consistent: either polite (です/ます) or plain (だ/である). Do NOT mix within one slide
+- The Conductor will call `set_language('ja')` in the assembled generator script - you do NOT call it from a fragment
+
 ## Workflow
 
 1. Read section plan + research provided by the Conductor
 2. Read API reference from skills/pptx-generator/references/api-reference.md
-3. Read skills/content-humanizer/SKILL.md for humanization rules
+3. Read skills/content-humanizer/SKILL.md for humanization rules (and the Japanese Output Mode section if `OUTPUT_LANGUAGE: ja`)
 4. Write the .py fragment to the provided path using bash or str_replace_editor
-5. Self-check all text and speaker notes against the humanization rules above
+5. Self-check all text and speaker notes against the humanization rules above (including Japanese AI tells if applicable)
 6. Report: slide count + one-line summary per slide
