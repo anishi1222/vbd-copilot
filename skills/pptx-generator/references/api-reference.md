@@ -84,6 +84,45 @@ add_callout_box(slide, "Key insight here", ..., bg=T.CALLOUT_BG)
 
 ---
 
+## Language System
+
+The language system controls East Asian font fallback so that Japanese
+characters render in a CJK-aware typeface (Yu Gothic UI) while Latin
+characters keep using Segoe UI within the same run.
+
+### `set_language(name: str) -> None`
+Set the active output language. `name` must be `"en"` (default) or `"ja"`.
+Call **before** `create_presentation()`.
+
+```python
+set_language("ja")
+prs = create_presentation()
+create_lead_slide(prs, "Azure AI ツアー", subtitle="L300 ディープダイブ", ...)
+```
+
+When language is `"ja"`, every run produced by `add_textbox()`,
+`add_bullet_list()`, `add_styled_table()`, `add_metric_card()`, the
+slide-template helpers, and similar functions automatically receive an
+`<a:ea typeface="Yu Gothic UI"/>` element in addition to the existing
+`<a:latin typeface="Segoe UI"/>`. Bold variants (`**bold**` markup,
+`bold=True`) keep Segoe UI Semibold for Latin and Yu Gothic UI for
+East Asian glyphs (the run-level bold property carries the weight to
+the EA face).
+
+`add_code_block()` is intentionally **excluded** from East Asian
+mapping to preserve monospaced alignment — code blocks are expected to
+remain ASCII / English-only.
+
+### `active_language() -> str`
+Return the currently active language code (`"en"` or `"ja"`). Useful
+for builder code that needs to switch labels or layouts based on the
+target audience.
+
+See [japanese-output.md](japanese-output.md) for the full Japanese-mode
+authoring guide.
+
+---
+
 ## Constants
 
 ### Colors

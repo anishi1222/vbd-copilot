@@ -39,6 +39,7 @@ DISCOVERY QUESTIONS - ask these when gathering context, adapted naturally to the
 - Do you have an internal team to implement Gen AI capabilities? Do they have skills in: Gen AI, Programming, Infrastructure?
 - Are there any technical or business constraints? (e.g. data residency, compliance, regulations, infosec requirements)
 - What is your roadmap in terms of end-user consumption volumetrics? (e.g. how many documents/queries to process, how many users, external vs internal)
+- Output language for the brainstorm document: 'English (default) / 日本語'. Default to English. When 日本語, the saved ai-brainstorming.md is written in Japanese while keeping product names, service names, and links in English.
 Ask these in natural conversation - not as a checklist dump. Prioritize the most relevant ones based on what the user has already shared.
 
 Workflow:

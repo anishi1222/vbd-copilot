@@ -45,6 +45,30 @@ EMOJI_RE = re.compile(
 # Em-dash
 EM_DASH_RE = re.compile(r"\u2014")
 
+# Japanese AI tells -- formulaic phrases. Detected only when language='ja'.
+JAPANESE_AI_TELL_PATTERNS = [
+    (re.compile(r"\u3068\u8a00\u3048\u308b\u3067\u3057\u3087\u3046"),
+     "Hedging cliche '\u3068\u8a00\u3048\u308b\u3067\u3057\u3087\u3046'"),
+    (re.compile(r"\u306b\u3064\u3044\u3066\u8ff0\u3079\u307e\u3059"),
+     "Formulaic narration '\u306b\u3064\u3044\u3066\u8ff0\u3079\u307e\u3059'"),
+    (re.compile(r"\u304c\u6328\u3052\u3089\u308c\u307e\u3059"),
+     "Formulaic enumeration '\u304c\u6328\u3052\u3089\u308c\u307e\u3059'"),
+    (re.compile(r"\u3059\u308b\u3053\u3068\u304c\u3067\u304d\u307e\u3059"),
+     "Verbose construction '\u3059\u308b\u3053\u3068\u304c\u3067\u304d\u307e\u3059' (use '\u3067\u304d\u307e\u3059')"),
+    (re.compile(r"\u3059\u308b\u3053\u3068\u304c\u53ef\u80fd\u3067\u3059"),
+     "Verbose construction '\u3059\u308b\u3053\u3068\u304c\u53ef\u80fd\u3067\u3059' (use '\u3067\u304d\u307e\u3059')"),
+    (re.compile(r"\u3068\u8003\u3048\u3089\u308c\u307e\u3059"),
+     "Vague hedge '\u3068\u8003\u3048\u3089\u308c\u307e\u3059'"),
+    (re.compile(r"\u3068\u8a00\u3063\u3066\u3082\u904e\u8a00\u3067\u306f\u3042\u308a\u307e\u305b\u3093"),
+     "Cliche hyperbole '\u3068\u8a00\u3063\u3066\u3082\u904e\u8a00\u3067\u306f\u3042\u308a\u307e\u305b\u3093'"),
+    (re.compile(r"\u4ee5\u4e0a\u306e\u3053\u3068\u304b\u3089"),
+     "Formulaic conclusion '\u4ee5\u4e0a\u306e\u3053\u3068\u304b\u3089'"),
+]
+
+_JA_POLITE_RE = re.compile(r"(\u3067\u3059\u3002|\u307e\u3059\u3002|\u307e\u3057\u305f\u3002)")
+_JA_PLAIN_RE = re.compile(r"(\u3060\u3002|\u3067\u3042\u308b\u3002|\u3060\u3063\u305f\u3002|\u3067\u3042\u3063\u305f\u3002)")
+_JA_MIXED_THRESHOLD = 3
+
 # Solution-revealing comment patterns inside code blocks
 SOLUTION_COMMENT_RE = re.compile(
     r"(?:#|//|/\*|<!--)\s*(?:"
@@ -470,6 +494,68 @@ def check_em_dashes(hackathon_dir: str) -> list[dict]:
     return issues
 
 
+def check_japanese_ai_tells(hackathon_dir: str) -> list[dict]:
+    """Detect formulaic Japanese AI tells in all markdown files."""
+    issues: list[dict] = []
+    for root, _dirs, files in os.walk(hackathon_dir):
+        for fname in files:
+            if not fname.endswith(".md"):
+                continue
+            fpath = os.path.join(root, fname)
+            rel_path = os.path.relpath(fpath, hackathon_dir)
+            try:
+                with open(fpath, "r", encoding="utf-8", errors="replace") as f:
+                    text = f.read()
+            except Exception:
+                continue
+            for line_num, line in enumerate(text.splitlines(), 1):
+                for pattern, label in JAPANESE_AI_TELL_PATTERNS:
+                    for match in pattern.finditer(line):
+                        issues.append(
+                            {
+                                "file": rel_path,
+                                "severity": "MAJOR",
+                                "check": "japanese_ai_tell",
+                                "message": (
+                                    f"{label} at line {line_num}: "
+                                    f"{line.strip()[:100]}"
+                                ),
+                            }
+                        )
+    return issues
+
+
+def check_japanese_mixed_styles(hackathon_dir: str) -> list[dict]:
+    """Per file: flag mixing of polite (\u3067\u3059/\u307e\u3059) and plain (\u3060/\u3067\u3042\u308b) registers."""
+    issues: list[dict] = []
+    for root, _dirs, files in os.walk(hackathon_dir):
+        for fname in files:
+            if not fname.endswith(".md"):
+                continue
+            fpath = os.path.join(root, fname)
+            rel_path = os.path.relpath(fpath, hackathon_dir)
+            try:
+                with open(fpath, "r", encoding="utf-8", errors="replace") as f:
+                    text = f.read()
+            except Exception:
+                continue
+            polite = len(_JA_POLITE_RE.findall(text))
+            plain = len(_JA_PLAIN_RE.findall(text))
+            if polite >= _JA_MIXED_THRESHOLD and plain >= _JA_MIXED_THRESHOLD:
+                issues.append(
+                    {
+                        "file": rel_path,
+                        "severity": "MINOR",
+                        "check": "japanese_mixed_styles",
+                        "message": (
+                            f"Mixes polite ({polite}) and plain ({plain}) "
+                            f"sentence endings - pick one register"
+                        ),
+                    }
+                )
+    return issues
+
+
 def check_cross_references(
     hackathon_dir: str, challenge_numbers: list[int]
 ) -> list[dict]:
@@ -716,8 +802,16 @@ def check_starter_code_comments(hackathon_dir: str) -> list[dict]:
 def run_all_checks(
     hackathon_dir: str,
     expected_challenges: int | None = None,
+    *,
+    language: str = "en",
 ) -> dict:
-    """Run all hackathon QA checks and return a structured report."""
+    """Run all hackathon QA checks and return a structured report.
+
+    ``language`` selects locale-specific behaviour:
+      - ``"en"`` (default): em-dash check is enforced.
+      - ``"ja"``: em-dash check is skipped; Japanese AI tell + mixed-style
+        checks are added.
+    """
 
     # Phase 0: directory existence
     dir_issues = check_dir_exists(hackathon_dir)
@@ -725,6 +819,7 @@ def run_all_checks(
         return {
             "status": "ERROR",
             "hackathon_dir": hackathon_dir,
+            "language": language,
             "issues": dir_issues,
             "summary": {"CRITICAL": len(dir_issues), "MAJOR": 0, "MINOR": 0},
         }
@@ -744,7 +839,11 @@ def run_all_checks(
     # Content quality checks
     all_issues.extend(check_placeholders(hackathon_dir))
     all_issues.extend(check_emoji(hackathon_dir))
-    all_issues.extend(check_em_dashes(hackathon_dir))
+    if language == "ja":
+        all_issues.extend(check_japanese_ai_tells(hackathon_dir))
+        all_issues.extend(check_japanese_mixed_styles(hackathon_dir))
+    else:
+        all_issues.extend(check_em_dashes(hackathon_dir))
     all_issues.extend(check_cross_references(hackathon_dir, challenge_numbers))
 
     # Solution leakage checks
@@ -766,6 +865,7 @@ def run_all_checks(
     return {
         "status": status,
         "hackathon_dir": hackathon_dir,
+        "language": language,
         "challenge_count": len(challenge_numbers),
         "issues": all_issues,
         "summary": summary,
@@ -781,10 +881,16 @@ def main() -> None:
         default=0,
         help="Expected number of challenges (0 to skip count check)",
     )
+    parser.add_argument(
+        "--language",
+        choices=["en", "ja"],
+        default="en",
+        help="Output language; 'ja' skips em-dash check and adds Japanese checks",
+    )
     args = parser.parse_args()
 
     expected = args.expected_challenges if args.expected_challenges > 0 else None
-    report = run_all_checks(args.hackathon_dir, expected)
+    report = run_all_checks(args.hackathon_dir, expected, language=args.language)
 
     print(json.dumps(report, indent=2))
 

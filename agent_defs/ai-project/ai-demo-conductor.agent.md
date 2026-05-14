@@ -100,6 +100,7 @@ All outputs go under `outputs/ai-projects/<project-slug>/demos/`:
     - Target audience (technical decision makers, developers, architects)
     - Any specific scenarios to highlight
     - Whether they want Azure Bastion access (default) or a temporary public endpoint approach
+    - Output language for the demo guide: 'English (default) / 日本語'. Default to English. Save as LANG ('en' or 'ja'). When 日本語, the demo guide prose is written in Japanese while companion scripts (bash/python/ps1), Bicep, and seed/cleanup scripts stay in English.
 
 ### Phase 1: Demo Access Strategy
 
@@ -173,6 +174,7 @@ The subagent produces:
     - Relevant project artifacts (architecture excerpt, relevant source code, API endpoints)
     - Demo access method (how the presenter reaches the service)
     - Demo data that was seeded
+    - OUTPUT_LANGUAGE ('en' or 'ja') from Phase 0B. When 'ja', fragment prose is written in Japanese; companion scripts and inline comments stay in English.
     PARALLEL DISPATCH: batch up to 5 demo-scenario-builder-subagent task calls in ONE response.
 
 4C. Verify ALL fragment files exist before assembly.
@@ -184,16 +186,17 @@ The subagent produces:
 
 ### Phase 5: Validation & Review
 
-5A. Run run_demo_qa_checks with the guide path, companion directory, and expected demo count.
+5A. Run run_demo_qa_checks with the guide path, companion directory, expected demo count, and language=LANG (from Phase 0B). When language='ja' the em-dash check on the guide is skipped and Japanese AI tell + mixed-style detection are added; companion scripts are still scanned for em-dashes.
 
 5B. Dispatch demo-reviewer-subagent with:
     - Guide path and companion dir
     - Demo level and topic
+    - OUTPUT_LANGUAGE ('en' or 'ja') so the reviewer evaluates prose against the right rubric
     - Full QA results from 5A
 
     - Original plan for comparison
 
-5C. Fix loop: if CRITICAL/MAJOR issues, dispatch demo-editor-subagent, re-run QA. Max 3 cycles.
+5C. Fix loop: if CRITICAL/MAJOR issues, dispatch demo-editor-subagent (with OUTPUT_LANGUAGE), re-run QA. Max 3 cycles.
 
 ### Phase 6: Completion
 
@@ -209,8 +212,9 @@ Present:
 
 - No emoji - use Unicode symbols
 - Never invent URLs - verify from project artifacts or official docs
-- No em-dashes - use hyphens
+- No em-dashes - use hyphens (Japanese mode skips this rule for guide body text but still avoids decorative em-dashes)
 - Demo infrastructure must be additive - NEVER modify the project's existing infra modules
 - Demo parameter file inherits from the project's parameter structure
 - All demo scripts must be idempotent and include cleanup instructions
 - Demo data must be realistic but never include real customer data
+- LANGUAGE: Pass OUTPUT_LANGUAGE ('en' or 'ja') from Phase 0B to demo-scenario-builder-subagent, demo-reviewer-subagent, and demo-editor-subagent in every dispatch. The QA tool must receive language=LANG. demo-env-builder-subagent always writes Bicep/scripts in English regardless of LANG.

@@ -28,6 +28,7 @@ import html
 import json
 import logging
 import os
+from typing import Literal
 import re
 import ssl
 import sys
@@ -179,6 +180,14 @@ class RunPptxQaChecksParams(BaseModel):
     expected_slides: int = Field(
         description="Expected number of slides",
     )
+    language: Literal["en", "ja"] = Field(
+        default="en",
+        description=(
+            "Output language of the deck. 'en' (default) runs the standard "
+            "checks. 'ja' additionally runs Japanese AI tell + mixed-style "
+            "(\u3067\u3059/\u307e\u3059 vs \u3060/\u3067\u3042\u308b) detection on slide text and speaker notes."
+        ),
+    )
 
 
 @define_tool(
@@ -186,7 +195,8 @@ class RunPptxQaChecksParams(BaseModel):
         "Run automated layout and content checks on a generated .pptx file. "
         "Checks for: shape overflow, placeholder text, speaker notes, font sizes, "
         "text overflow, shape overlap, empty frames, content margins, text density, "
-        "and slide count. Returns a structured report with CRITICAL/MAJOR/MINOR issues. "
+        "and slide count. When language='ja', adds Japanese AI tell + mixed-style "
+        "checks. Returns a structured report with CRITICAL/MAJOR/MINOR issues. "
         "Exit code 0 = CLEAN, 1 = ISSUES_FOUND."
     )
 )
@@ -211,6 +221,8 @@ def run_pptx_qa_checks(params: RunPptxQaChecksParams) -> str:
                 params.pptx_path,
                 "--expected-slides",
                 str(params.expected_slides),
+                "--language",
+                params.language,
             ],
             capture_output=True,
             text=True,
@@ -242,6 +254,15 @@ class RunDemoQaChecksParams(BaseModel):
         default=0,
         description="Expected number of demos (0 to skip count check)",
     )
+    language: Literal["en", "ja"] = Field(
+        default="en",
+        description=(
+            "Output language of the demo guide. 'en' (default) enforces the "
+            "em-dash check. 'ja' skips em-dash on the guide and adds Japanese "
+            "AI tell + mixed-style checks. Companion scripts are always "
+            "scanned for em-dashes regardless of language."
+        ),
+    )
 
 
 @define_tool(
@@ -249,8 +270,9 @@ class RunDemoQaChecksParams(BaseModel):
         "Run automated QA checks on a generated demo package (guide .md + companion "
         "scripts). Checks for: placeholder text, emoji, em-dashes, script syntax "
         "(bash -n / py_compile), file cross-references, guide structure, script headers, "
-        "and demo count. Returns a structured report with CRITICAL/MAJOR/MINOR issues. "
-        "Exit code 0 = CLEAN, 1 = ISSUES_FOUND."
+        "and demo count. When language='ja', em-dash check on the guide is skipped "
+        "and Japanese AI tell + mixed-style checks are added. Returns a structured "
+        "report with CRITICAL/MAJOR/MINOR issues. Exit code 0 = CLEAN, 1 = ISSUES_FOUND."
     )
 )
 def run_demo_qa_checks(params: RunDemoQaChecksParams) -> str:
@@ -271,6 +293,7 @@ def run_demo_qa_checks(params: RunDemoQaChecksParams) -> str:
         cmd.extend(["--companion-dir", params.companion_dir])
     if params.expected_demos and params.expected_demos > 0:
         cmd.extend(["--expected-demos", str(params.expected_demos)])
+    cmd.extend(["--language", params.language])
 
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
@@ -449,6 +472,15 @@ class RunDocsQaChecksParams(BaseModel):
         default="",
         description="Project slug for context (optional)",
     )
+    language: Literal["en", "ja"] = Field(
+        default="en",
+        description=(
+            "Output language of the documentation. 'en' (default) enforces "
+            "the em-dash check on README.md. 'ja' skips em-dash and adds "
+            "Japanese AI tell + mixed-style checks across README.md and "
+            "docs/*.md."
+        ),
+    )
 
 
 @define_tool(
@@ -457,8 +489,10 @@ class RunDocsQaChecksParams(BaseModel):
         "Checks for: required sections present (overview, prerequisites, deploy, "
         "validation, demo guide, troubleshooting), path accuracy, command correctness, "
         "environment variable documentation, deploy.sh/validate.sh usage docs, "
-        "placeholders, and content quality. Returns a structured report with "
-        "CRITICAL/MAJOR/MINOR issues. Exit code 0 = CLEAN, 1 = ISSUES_FOUND."
+        "placeholders, and content quality. When language='ja', em-dash check is "
+        "skipped and Japanese AI tell + mixed-style checks are added. Returns a "
+        "structured report with CRITICAL/MAJOR/MINOR issues. "
+        "Exit code 0 = CLEAN, 1 = ISSUES_FOUND."
     )
 )
 def run_docs_qa_checks(params: RunDocsQaChecksParams) -> str:
@@ -477,6 +511,7 @@ def run_docs_qa_checks(params: RunDocsQaChecksParams) -> str:
     cmd = [sys.executable, qa_script, params.project_dir]
     if params.project_slug:
         cmd.extend(["--project-slug", params.project_slug])
+    cmd.extend(["--language", params.language])
 
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
@@ -504,6 +539,14 @@ class RunHackathonQaChecksParams(BaseModel):
         default=0,
         description="Expected number of challenges (0 to skip count check)",
     )
+    language: Literal["en", "ja"] = Field(
+        default="en",
+        description=(
+            "Output language of the hackathon package. 'en' (default) "
+            "enforces the em-dash check. 'ja' skips em-dash and adds "
+            "Japanese AI tell + mixed-style checks across all .md files."
+        ),
+    )
 
 
 @define_tool(
@@ -513,8 +556,10 @@ class RunHackathonQaChecksParams(BaseModel):
         "(Introduction, Description, Success Criteria, Learning Resources), "
         "matching solution folders, coach materials, dev container validity, "
         "top-level README structure, placeholder text, emoji, em-dashes, and "
-        "cross-reference consistency. Returns a structured report with "
-        "CRITICAL/MAJOR/MINOR issues. Exit code 0 = CLEAN, 1 = ISSUES_FOUND."
+        "cross-reference consistency. When language='ja', em-dash check is "
+        "skipped and Japanese AI tell + mixed-style checks are added. Returns "
+        "a structured report with CRITICAL/MAJOR/MINOR issues. "
+        "Exit code 0 = CLEAN, 1 = ISSUES_FOUND."
     )
 )
 def run_hackathon_qa_checks(params: RunHackathonQaChecksParams) -> str:
@@ -533,6 +578,7 @@ def run_hackathon_qa_checks(params: RunHackathonQaChecksParams) -> str:
     cmd = [sys.executable, qa_script, params.hackathon_dir]
     if params.expected_challenges and params.expected_challenges > 0:
         cmd.extend(["--expected-challenges", str(params.expected_challenges)])
+    cmd.extend(["--language", params.language])
 
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)

@@ -87,6 +87,44 @@ You can always skip the router and go straight to a specific agent:
 
 ---
 
+## Output Language
+
+Each conductor (slides, demos, hackathons, ai-projects) asks during Phase 0 clarification whether to write the prose in `English (default)` or `日本語`. You can also state the language directly in the request and the conductor will skip that question.
+
+### Examples
+
+```text
+>>> 日本語で AKS の L300 1時間スライドを作って
+  >> routed -> slide-conductor | model: claude-sonnet-4.6
+  ...
+  Phase 0F: 出力言語を 'English (default) / 日本語' から選んでください -> 日本語
+  ...
+  OK: Saved outputs/slides/aks-l300-1h-ja.pptx (24 slides)
+
+>>> Build a hackathon on Azure AI Search, in Japanese
+  >> routed -> hackathon-conductor
+  ...
+  Phase 0B includes: Output language? -> 日本語
+  ...
+  OK: outputs/hackathons/azure-ai-search-hack/ with Japanese README.md, challenges, and coach materials
+```
+
+### Rules by deliverable
+
+| Workflow | Japanese applies to | Always English |
+|---|---|---|
+| Slides | Titles, bullets, callouts, speaker notes | Code blocks, product/service names, file paths, URLs. Generated PPTX uses Yu Gothic UI as the East Asian font; the file gets a `-ja` suffix. |
+| Demos | Demo guide prose ('Say this' boxes, descriptions, headings) | Companion scripts (.sh/.py/.ps1), inline comments, CLI commands, Bicep |
+| Hackathons | challenges/*.md, coach/*.md, resources/*.md, README.md | .devcontainer/, Dockerfile, code blocks, Bicep, starter files |
+| AI projects (architect) | docs/*.md (executive-brief, solution-design, data-assessment, responsible-ai, cost-estimation, delivery-plan) | .drawio XML structure (display labels MAY be Japanese), SKU IDs, code/Bicep |
+| AI projects (implementor) | README.md only | All code (src/), infra/ (Bicep), .github/workflows/, scripts/deploy.sh, tests/, validate.sh, inline code comments |
+| AI projects (demo) | demo-guide.md prose | Companion scripts, Bicep, seed/cleanup scripts |
+| AI projects (brainstorming) | docs/ai-brainstorming.md | Product/service names, links |
+
+QA is language-aware. With Japanese mode, the QA tools skip the English em-dash check on body text and add Japanese AI tell + ですます/である mixed-style detection.
+
+---
+
 ## Slash Commands
 
 | Command | Description |

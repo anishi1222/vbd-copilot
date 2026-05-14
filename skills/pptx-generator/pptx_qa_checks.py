@@ -60,6 +60,35 @@ PLACEHOLDER_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Japanese AI tells -- formulaic phrases that read as machine-translated or
+# committee-written Japanese. Detected only when --language ja is selected.
+# Each entry: (compiled regex, short label).
+JAPANESE_AI_TELL_PATTERNS = [
+    (re.compile(r"\u3068\u8a00\u3048\u308b\u3067\u3057\u3087\u3046"),  # と言えるでしょう
+     "Hedging cliche '\u3068\u8a00\u3048\u308b\u3067\u3057\u3087\u3046'"),
+    (re.compile(r"\u306b\u3064\u3044\u3066\u8ff0\u3079\u307e\u3059"),  # について述べます
+     "Formulaic narration '\u306b\u3064\u3044\u3066\u8ff0\u3079\u307e\u3059'"),
+    (re.compile(r"\u304c\u6328\u3052\u3089\u308c\u307e\u3059"),  # が挙げられます
+     "Formulaic enumeration '\u304c\u6328\u3052\u3089\u308c\u307e\u3059'"),
+    (re.compile(r"\u3059\u308b\u3053\u3068\u304c\u3067\u304d\u307e\u3059"),  # することができます
+     "Verbose construction '\u3059\u308b\u3053\u3068\u304c\u3067\u304d\u307e\u3059' (use '\u3067\u304d\u307e\u3059')"),
+    (re.compile(r"\u3059\u308b\u3053\u3068\u304c\u53ef\u80fd\u3067\u3059"),  # することが可能です
+     "Verbose construction '\u3059\u308b\u3053\u3068\u304c\u53ef\u80fd\u3067\u3059' (use '\u3067\u304d\u307e\u3059')"),
+    (re.compile(r"\u3068\u8003\u3048\u3089\u308c\u307e\u3059"),  # と考えられます
+     "Vague hedge '\u3068\u8003\u3048\u3089\u308c\u307e\u3059'"),
+    (re.compile(r"\u3068\u8a00\u3063\u3066\u3082\u904e\u8a00\u3067\u306f\u3042\u308a\u307e\u305b\u3093"),  # と言っても過言ではありません
+     "Cliche hyperbole '\u3068\u8a00\u3063\u3066\u3082\u904e\u8a00\u3067\u306f\u3042\u308a\u307e\u305b\u3093'"),
+    (re.compile(r"\u4ee5\u4e0a\u306e\u3053\u3068\u304b\u3089"),  # 以上のことから
+     "Formulaic conclusion '\u4ee5\u4e0a\u306e\u3053\u3068\u304b\u3089'"),
+]
+
+# Detection patterns for the two main Japanese sentence-ending styles.
+# Used by check_japanese_mixed_styles to flag decks that mix polite (\u3067\u3059/\u307e\u3059)
+# and plain/literary (\u3060/\u3067\u3042\u308b) registers in the same speaker note.
+_JA_POLITE_RE = re.compile(r"(\u3067\u3059\u3002|\u307e\u3059\u3002|\u307e\u3057\u305f\u3002)")
+_JA_PLAIN_RE = re.compile(r"(\u3060\u3002|\u3067\u3042\u308b\u3002|\u3060\u3063\u305f\u3002|\u3067\u3042\u3063\u305f\u3002)")
+_JA_MIXED_THRESHOLD = 3  # need at least this many of *each* style to flag
+
 
 def emu_to_inches(emu: int) -> float:
     return round(emu / 914400, 2)
@@ -701,17 +730,101 @@ def check_slide_text_density(prs: Presentation) -> list[dict]:
     return issues
 
 
+def check_japanese_ai_tells(prs, language: str = "en") -> list[dict]:
+    """Detect formulaic Japanese AI tells in slide body text and speaker notes.
+
+    Only runs when ``language == 'ja'``. Each match is reported as MAJOR so it
+    surfaces in CI but does not block (the human-in-the-loop reviewer decides).
+    """
+    issues: list[dict] = []
+    if language != "ja":
+        return issues
+    for slide_idx, slide in enumerate(prs.slides, 1):
+        # Body text
+        for shape in slide.shapes:
+            if not shape.has_text_frame:
+                continue
+            text = shape.text_frame.text
+            for pattern, label in JAPANESE_AI_TELL_PATTERNS:
+                for match in pattern.finditer(text):
+                    issues.append(
+                        {
+                            "slide": slide_idx,
+                            "severity": "MAJOR",
+                            "check": "japanese_ai_tell",
+                            "message": f"{label} in body text: {match.group()}",
+                        }
+                    )
+        # Speaker notes
+        if slide.has_notes_slide:
+            notes_text = slide.notes_slide.notes_text_frame.text
+            for pattern, label in JAPANESE_AI_TELL_PATTERNS:
+                for match in pattern.finditer(notes_text):
+                    issues.append(
+                        {
+                            "slide": slide_idx,
+                            "severity": "MAJOR",
+                            "check": "japanese_ai_tell",
+                            "message": f"{label} in speaker notes: {match.group()}",
+                        }
+                    )
+    return issues
+
+
+def check_japanese_mixed_styles(prs, language: str = "en") -> list[dict]:
+    """Flag speaker notes that mix polite (\u3067\u3059/\u307e\u3059) and plain (\u3060/\u3067\u3042\u308b) registers.
+
+    Only runs when ``language == 'ja'``. Emits a MINOR issue per slide whose
+    notes contain at least ``_JA_MIXED_THRESHOLD`` occurrences of *each* style.
+    Body text is intentionally skipped because slide titles and bullets
+    frequently use the noun-stop (\u4f53\u8a00\u6b62\u3081) form which would noise the check.
+    """
+    issues: list[dict] = []
+    if language != "ja":
+        return issues
+    for slide_idx, slide in enumerate(prs.slides, 1):
+        if not slide.has_notes_slide:
+            continue
+        notes_text = slide.notes_slide.notes_text_frame.text
+        polite = len(_JA_POLITE_RE.findall(notes_text))
+        plain = len(_JA_PLAIN_RE.findall(notes_text))
+        if polite >= _JA_MIXED_THRESHOLD and plain >= _JA_MIXED_THRESHOLD:
+            issues.append(
+                {
+                    "slide": slide_idx,
+                    "severity": "MINOR",
+                    "check": "japanese_mixed_styles",
+                    "message": (
+                        f"Speaker notes mix polite ({polite}) and plain ({plain}) "
+                        f"sentence endings - pick one register"
+                    ),
+                }
+            )
+    return issues
+
+
 # ── Main runner ───────────────────────────────────────────────────────────────
 
 
-def run_all_checks(pptx_path: str, expected_slides: int | None = None) -> dict:
-    """Run all QA checks and return a structured report."""
+def run_all_checks(
+    pptx_path: str,
+    expected_slides: int | None = None,
+    *,
+    language: str = "en",
+) -> dict:
+    """Run all QA checks and return a structured report.
+
+    ``language`` selects locale-specific checks:
+      - ``"en"`` (default): existing English-only behaviour.
+      - ``"ja"``: additionally runs Japanese AI tells and mixed-style detection.
+    """
     try:
         prs = Presentation(pptx_path)
     except Exception as e:
         return {
             "status": "ERROR",
             "file": pptx_path,
+            "language": language,
             "error": str(e),
             "issues": [],
             "summary": {"CRITICAL": 0, "MAJOR": 0, "MINOR": 0},
@@ -731,6 +844,16 @@ def run_all_checks(pptx_path: str, expected_slides: int | None = None) -> dict:
         ("content_margins", lambda: check_content_margins(prs)),
         ("text_density", lambda: check_slide_text_density(prs)),
     ]
+    if language == "ja":
+        checks.extend(
+            [
+                ("japanese_ai_tells", lambda: check_japanese_ai_tells(prs, language)),
+                (
+                    "japanese_mixed_styles",
+                    lambda: check_japanese_mixed_styles(prs, language),
+                ),
+            ]
+        )
 
     for check_name, check_fn in checks:
         try:
@@ -762,6 +885,7 @@ def run_all_checks(pptx_path: str, expected_slides: int | None = None) -> dict:
     return {
         "status": status,
         "file": pptx_path,
+        "language": language,
         "slide_count": len(prs.slides),
         "expected_slides": expected_slides,
         "issues": all_issues,
@@ -816,11 +940,19 @@ if __name__ == "__main__":
         "--expected-slides", type=int, default=None, help="Expected number of slides"
     )
     parser.add_argument(
+        "--language",
+        choices=["en", "ja"],
+        default="en",
+        help="Output language; 'ja' enables Japanese AI tell + mixed-style checks",
+    )
+    parser.add_argument(
         "--json", action="store_true", help="Output JSON instead of text"
     )
     args = parser.parse_args()
 
-    report = run_all_checks(args.pptx_path, args.expected_slides)
+    report = run_all_checks(
+        args.pptx_path, args.expected_slides, language=args.language
+    )
 
     if args.json:
         # Convert defaultdict keys for JSON serialization

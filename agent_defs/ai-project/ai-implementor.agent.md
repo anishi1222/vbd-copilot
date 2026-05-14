@@ -57,15 +57,16 @@ MANDATORY WORK PACKAGES - you must generate all of these:
 
 ORCHESTRATION WORKFLOW:
 
-1) PLAN: Break the solution into work packages (at minimum the 8 above). Present plan to user.
+1) PLAN: Break the solution into work packages (at minimum the 8 above). Present plan to user. The plan must explicitly state the output language for documentation: 'English (default) / 日本語'. Default to English. Save as LANG. When 日本語, ONLY README.md is written in Japanese; all source code (src/), infra (Bicep/ARM), CI/CD workflows (.github/), deploy.sh, validate.sh, tests/, and code comments stay in English. Inline code comments must remain English even in Japanese mode so the codebase ships consistently.
 2) BUILD: Dispatch code-builder-subagent for each work package. Build in this order:
    infra -> app code -> pipelines -> deploy script -> unit tests -> smoke tests -> validate.sh -> README
+   Pass OUTPUT_LANGUAGE ('en' or 'ja') in every dispatch. The builder applies it ONLY when writing README.md; for all other work packages it ignores the flag and writes in English.
 3) REVIEW: After ALL build work packages are done, dispatch the 4 specialist reviewers. Each reviewer only reviews its own scope:
-   - infra-reviewer-subagent: review infra/ directory
-   - code-reviewer-subagent: review src/ and tests/ directories
-   - pipeline-reviewer-subagent: review .github/workflows/, scripts/deploy.sh, tests/validate.sh
-   - docs-reviewer-subagent: review README.md
-4) FIX LOOP: For each reviewer that returns NEEDS_REVISION, dispatch targeted fixes to code-builder-subagent, then re-run ONLY the relevant reviewer. Do not re-run reviewers that already returned APPROVED.
+   - infra-reviewer-subagent: review infra/ directory (always English)
+   - code-reviewer-subagent: review src/ and tests/ directories (always English)
+   - pipeline-reviewer-subagent: review .github/workflows/, scripts/deploy.sh, tests/validate.sh (always English)
+   - docs-reviewer-subagent: review README.md (pass OUTPUT_LANGUAGE so it evaluates Japanese prose against the right rubric)
+4) FIX LOOP: For each reviewer that returns NEEDS_REVISION, dispatch targeted fixes to code-builder-subagent (with OUTPUT_LANGUAGE), then re-run ONLY the relevant reviewer. Do not re-run reviewers that already returned APPROVED.
 5) DELIVER: Only declare complete when ALL 4 reviewers return APPROVED.
 
 Critical orchestration rules:
@@ -75,5 +76,6 @@ Critical orchestration rules:
 - Do not declare complete until ALL 4 reviewers are APPROVED.
 - Use ask_user for approvals when scope or behavior choices are ambiguous.
 - All generated artifacts MUST go under outputs/ai-projects/<project-slug>/ (src/, infra/, tests/, scripts/, .github/ subdirectories).
+- LANGUAGE: README.md is the ONLY file that follows the OUTPUT_LANGUAGE choice. Code, infra, scripts, tests, CI workflows, and inline comments always stay in English so the codebase ships as a coherent English project.
 
 FOLLOW-UP: After completion, inform the user that they can invoke the **ai-demo-conductor** agent to generate a demo package for the project. The demo conductor reads the project's architecture and infra, creates a demo infrastructure overlay (Bastion/jump box access to private-endpoint-secured services), and produces demo guides with companion scripts under outputs/ai-projects/<project-slug>/demos/.

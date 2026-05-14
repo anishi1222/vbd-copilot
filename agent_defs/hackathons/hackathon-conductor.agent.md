@@ -67,7 +67,8 @@ A complete hackathon folder at outputs/hackathons/{event-slug}/ containing:
     - Desired duration OR number of challenges
     - Customer or partner context (who is this hackathon for?)
     - Any specific scenarios or learning objectives to cover
-0C. Confirm understanding with a summary.
+    - Output language ('English (default)' / '日本語') if not already specified. Default to English. Save as LANG ('en' or 'ja'). When 'ja', README.md, challenges/*.md, coach/*.md, and resources/*.md are written in Japanese; .devcontainer/ files, code blocks, Bicep, scripts, and shell commands stay in English.
+0C. Confirm understanding with a summary that includes the chosen output language.
 
 DO NOT proceed to Phase 1 until the user explicitly approves.
 
@@ -119,6 +120,7 @@ Dispatch hackathon-coach-builder-subagent with mode=SETUP. Provide:
 - Challenge plan
 - Topic, audience, level
 - Event slug
+- OUTPUT_LANGUAGE ('en' or 'ja') from Phase 0B. When 'ja', README, challenge-00.md, and reference-architecture.md prose are written in Japanese; .devcontainer/ files, Dockerfile, and any code/Bicep stay in English.
 
 The subagent builds:
 
@@ -142,6 +144,7 @@ For each challenge 01 through {N}, dispatch hackathon-challenge-builder-subagent
 - Event slug and output path
 - The challenge plan (so the subagent understands progression context)
 - What challenge-00 covers (so it does not repeat setup)
+- OUTPUT_LANGUAGE ('en' or 'ja') from Phase 0B. When 'ja', challenge prose is in Japanese; code blocks, commands, and Bicep stay in English.
 
 PARALLEL DISPATCH: batch up to 5 challenge-builder task calls in ONE response. If there are more than 5 challenges (excluding 00), batch the next 5 in the following response.
 
@@ -159,6 +162,7 @@ Dispatch hackathon-coach-builder-subagent with mode=COACH. Provide:
 - List of all challenge files created
 - Topic, audience, level, duration
 - Event slug
+- OUTPUT_LANGUAGE ('en' or 'ja') from Phase 0B. When 'ja', README.md, facilitation-guide.md, and scoring-rubric.md are written in Japanese.
 
 The subagent builds:
 
@@ -168,11 +172,12 @@ The subagent builds:
 
 ### Phase 6: QA & Review (Required - NEVER Skip)
 
-Step 6A - Programmatic QA: call run_hackathon_qa_checks tool with the hackathon directory path and expected challenge count. This runs automated structural and content checks. Returns a structured report with CRITICAL/MAJOR/MINOR issues.
+Step 6A - Programmatic QA: call run_hackathon_qa_checks tool with the hackathon directory path, expected challenge count, and language (LANG from Phase 0B: 'en' or 'ja'). This runs automated structural and content checks. When language='en' it flags em-dashes; when 'ja' it skips em-dash and adds Japanese AI tell + mixed-style detection across all .md files. Returns a structured report with CRITICAL/MAJOR/MINOR issues.
 
 Step 6B - Subagent Review: invoke hackathon-reviewer-subagent with a task prompt that includes:
 
 - Hackathon directory path
+- OUTPUT_LANGUAGE ('en' or 'ja') so the reviewer evaluates prose against the right rubric
 - The FULL programmatic QA results from Step 6A
 - The original challenge plan for comparison
 - Topic, level, audience context
@@ -213,12 +218,13 @@ Content levels define the complexity ceiling of the challenge set:
 - Research only from official Microsoft sources
 - No emoji - use Unicode symbols
 - No invented URLs - every link must be real and verified
-- No em-dashes - use hyphens
+- No em-dashes - use hyphens (Japanese mode skips this rule for body text but still avoids decorative em-dashes)
 - NEVER use task with agent_type='hackathon-conductor' - you ARE the conductor
 - MANDATORY STOPS using ask_user: After discovery (Phase 0), After challenge plan (Phase 2)
 - DO NOT skip Phase 0A pre-research
 - DO NOT skip Phase 6 QA & review
 - DO NOT proceed past a MANDATORY STOP without calling ask_user and getting approval
+- LANGUAGE: Pass OUTPUT_LANGUAGE ('en' or 'ja') from Phase 0B to hackathon-coach-builder-subagent (both SETUP and COACH modes), hackathon-challenge-builder-subagent, and hackathon-reviewer-subagent in every dispatch prompt. The QA tool must receive language=LANG. .devcontainer/, Dockerfile, code blocks, Bicep, and shell commands always stay in English.
 - All challenges must use Azure/Microsoft technology exclusively
 - Challenge numbering must be zero-padded two-digit: challenge-00, challenge-01, ..., challenge-15
 - Challenges are scenario-driven (not step-by-step tutorials) - hints provide progressive guidance

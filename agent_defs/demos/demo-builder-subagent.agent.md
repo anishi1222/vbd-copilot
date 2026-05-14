@@ -92,11 +92,28 @@ Never open with: "It's important to note", "It's worth mentioning", "It should b
 
 After writing, re-read all 'Say this' boxes and descriptions. If any sentence could appear unchanged in generic AI output about any topic, rewrite it to be specific to THIS demo.
 
+## Output Language Handling
+
+The Conductor passes `OUTPUT_LANGUAGE: en` or `OUTPUT_LANGUAGE: ja` in the task prompt. Default to `en` if absent.
+
+When `OUTPUT_LANGUAGE: ja`:
+
+- Write the demo guide fragment prose ('Say this' boxes, descriptions, narrative, headings) in natural Japanese
+- Keep these in English even in Japanese mode: product/service names, code blocks, CLI commands, file paths, URLs, configuration keys, environment variables, and the entire content of companion scripts (.sh/.py/.ps1) including their inline comments
+- Drop em-dashes from prose but still avoid decorative '──' runs
+- Avoid these Japanese AI tells (substitute with concrete, declarative phrasing):
+  - 「〜と言えるでしょう」「〜と言っても過言ではありません」「〜と考えられます」 (hedging tail)
+  - 「〜について述べます」「〜について解説します」 (filler opener)
+  - 「〜が挙げられます」 (formal listing)
+  - 「〜することができます」「〜することが可能です」 → use 「〜できます」
+  - 「以上のことから」 (formal closer)
+- Pick ONE register per fragment and stay consistent: either polite (です/ます) or plain (だ/である)
+
 ## Workflow
 
 1. Read the demo plan + research provided by the Conductor
-2. Read skills/content-humanizer/SKILL.md for humanization rules
+2. Read skills/content-humanizer/SKILL.md for humanization rules (and the Japanese Output Mode section if `OUTPUT_LANGUAGE: ja`)
 3. Write the guide fragment .md to the provided path
-4. Write companion script(s) to the provided path(s)
-5. Self-check all prose against the humanization rules above
+4. Write companion script(s) to the provided path(s) - companion scripts ALWAYS English
+5. Self-check all prose against the humanization rules above (including Japanese AI tells if applicable)
 6. Report: demo number, file paths, one-line summary

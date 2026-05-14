@@ -134,6 +134,34 @@ class TestRunPptxQaChecksTool:
             )
         assert "not found" in _text(result)
 
+    @pytest.mark.asyncio
+    async def test_default_language_passed_to_subprocess(self):
+        """Default language ('en') is forwarded as --language en to the script."""
+        mock_result = MagicMock(returncode=0, stdout="OK")
+        with patch("subprocess.run", return_value=mock_result) as mock_run:
+            await _call(
+                run_pptx_qa_checks,
+                {"pptx_path": "/tmp/t.pptx", "expected_slides": 10},
+            )
+        cmd = mock_run.call_args[0][0]
+        assert "--language" in cmd
+        assert cmd[cmd.index("--language") + 1] == "en"
+
+    @pytest.mark.asyncio
+    async def test_language_ja_forwarded_to_subprocess(self):
+        mock_result = MagicMock(returncode=0, stdout="OK")
+        with patch("subprocess.run", return_value=mock_result) as mock_run:
+            await _call(
+                run_pptx_qa_checks,
+                {
+                    "pptx_path": "/tmp/t.pptx",
+                    "expected_slides": 10,
+                    "language": "ja",
+                },
+            )
+        cmd = mock_run.call_args[0][0]
+        assert cmd[cmd.index("--language") + 1] == "ja"
+
 
 class TestRunDemoQaChecksTool:
     @pytest.mark.asyncio
@@ -158,6 +186,25 @@ class TestRunDemoQaChecksTool:
         cmd = mock_run.call_args[0][0]
         assert "--companion-dir" in cmd
         assert "--expected-demos" in cmd
+
+    @pytest.mark.asyncio
+    async def test_default_language_passed_to_subprocess(self):
+        mock_result = MagicMock(returncode=0, stdout="OK")
+        with patch("subprocess.run", return_value=mock_result) as mock_run:
+            await _call(run_demo_qa_checks, {"guide_path": "/tmp/g.md"})
+        cmd = mock_run.call_args[0][0]
+        assert cmd[cmd.index("--language") + 1] == "en"
+
+    @pytest.mark.asyncio
+    async def test_language_ja_forwarded_to_subprocess(self):
+        mock_result = MagicMock(returncode=0, stdout="OK")
+        with patch("subprocess.run", return_value=mock_result) as mock_run:
+            await _call(
+                run_demo_qa_checks,
+                {"guide_path": "/tmp/g.md", "language": "ja"},
+            )
+        cmd = mock_run.call_args[0][0]
+        assert cmd[cmd.index("--language") + 1] == "ja"
 
     @pytest.mark.asyncio
     async def test_returncode_2(self):
@@ -308,6 +355,24 @@ class TestRunDocsQaChecksTool:
         assert "--project-slug" in mock_run.call_args[0][0]
 
     @pytest.mark.asyncio
+    async def test_default_language_passed_to_subprocess(self):
+        mock_result = MagicMock(returncode=0, stdout="OK")
+        with patch("subprocess.run", return_value=mock_result) as mock_run:
+            await _call(run_docs_qa_checks, {"project_dir": "/tmp/p"})
+        cmd = mock_run.call_args[0][0]
+        assert cmd[cmd.index("--language") + 1] == "en"
+
+    @pytest.mark.asyncio
+    async def test_language_ja_forwarded_to_subprocess(self):
+        mock_result = MagicMock(returncode=0, stdout="OK")
+        with patch("subprocess.run", return_value=mock_result) as mock_run:
+            await _call(
+                run_docs_qa_checks, {"project_dir": "/tmp/p", "language": "ja"}
+            )
+        cmd = mock_run.call_args[0][0]
+        assert cmd[cmd.index("--language") + 1] == "ja"
+
+    @pytest.mark.asyncio
     async def test_returncode_2(self):
         mock_result = MagicMock(returncode=2, stdout="", stderr="error")
         with patch("subprocess.run", return_value=mock_result):
@@ -344,6 +409,25 @@ class TestRunHackathonQaChecksTool:
                 {"hackathon_dir": "/tmp/h", "expected_challenges": 5},
             )
         assert "--expected-challenges" in mock_run.call_args[0][0]
+
+    @pytest.mark.asyncio
+    async def test_default_language_passed_to_subprocess(self):
+        mock_result = MagicMock(returncode=0, stdout="OK")
+        with patch("subprocess.run", return_value=mock_result) as mock_run:
+            await _call(run_hackathon_qa_checks, {"hackathon_dir": "/tmp/h"})
+        cmd = mock_run.call_args[0][0]
+        assert cmd[cmd.index("--language") + 1] == "en"
+
+    @pytest.mark.asyncio
+    async def test_language_ja_forwarded_to_subprocess(self):
+        mock_result = MagicMock(returncode=0, stdout="OK")
+        with patch("subprocess.run", return_value=mock_result) as mock_run:
+            await _call(
+                run_hackathon_qa_checks,
+                {"hackathon_dir": "/tmp/h", "language": "ja"},
+            )
+        cmd = mock_run.call_args[0][0]
+        assert cmd[cmd.index("--language") + 1] == "ja"
 
     @pytest.mark.asyncio
     async def test_returncode_2(self):

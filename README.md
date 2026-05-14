@@ -94,6 +94,7 @@ Browse all samples: [slides](samples/slides/README.md) · [demos](samples/demos/
 ```text
 "Create a 15min L200 briefing on what's new in AKS"
 "Build a 30min deck from notes/aks-security-review.md"
+"日本語で AKS の L300 1時間スライドを作って"          # Japanese output
 "@ai-brainstorming AI use cases for a healthcare company"
 "@ai-solution-architect Design architecture for idea #3"
 "@ai-implementor Implement the solution"
@@ -101,6 +102,10 @@ Browse all samples: [slides](samples/slides/README.md) · [demos](samples/demos/
 /resume                    # pick up where you left off
 /model                     # switch models mid-session
 ```
+
+### Output language
+
+Each conductor (slides, demos, hackathons, ai-projects) asks during Phase 0 clarification whether to write the prose in `English (default)` or `日本語`. Code, Bicep, CLI commands, file paths, URLs, product/service names, and inline comments stay in English regardless. Slide decks generated in Japanese mode use Yu Gothic UI as the East Asian font and get a `-ja` filename suffix (e.g. `aks-l300-1h-ja.pptx`). Details: [docs/USAGE.md](docs/USAGE.md#output-language).
 
 ---
 
