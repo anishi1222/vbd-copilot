@@ -54,7 +54,8 @@ Always batch independent task calls into a single response. Max 5 task calls per
 0C. If content level NOT specified, ask: L100/L200/L300/L400
 0D. If duration NOT specified, ask the session duration (15min/30min/1h/2h/4h/8h and corresponding slide counts)
 0E. If layout theme NOT specified in the request, ask: light (white slides, default Microsoft style) or dark (dark-background slides). Default to light if the user skips.
-0F. Confirm understanding with a summary.
+0F. If output language NOT specified in the request, ask: 'English (default) / 日本語'. Default to English if the user skips. Save the choice as LANG ('en' or 'ja'); this drives the East-Asian font, the QA language flag, the OUTNAME suffix, and the OUTPUT_LANGUAGE passed to every subagent.
+0G. Confirm understanding with a summary that includes the chosen output language.
 
 ### Phase 1: Deep Research
 
@@ -77,11 +78,13 @@ If the user requests changes, revise the plan and ask again.
     - Section type (opening/section/closing), fragment file path
     - Section plan, relevant research, content level
     - Starting slide number, TOTAL slide count, topic
+    - THEME ('light' or 'dark') from Phase 0E
+    - OUTPUT_LANGUAGE ('en' or 'ja') from Phase 0F. When 'ja', the builder writes slide titles, body text, callouts, and speaker notes in Japanese while keeping product/service names, code, URLs, and file names in English. Code blocks must remain ASCII to preserve monospace alignment.
     PARALLEL DISPATCH: batch up to 5 section task calls in ONE response (e.g. opening + closing + first 3 middle sections). Then batch the next 5, and so on. Do NOT send one task call per response - that is serial and very slow.
 3D. Before assembly, verify ALL expected fragment files exist. List the fragments directory and confirm each section produced its numbered fragment (e.g. 01-opening.py, 02-section-name.py, ...). If any fragment is missing, re-invoke the slide-builder-subagent for that section before proceeding.
 3E. Assemble generator script. The script lives in outputs/slides/ so pptx_utils is in the skill:
-    SLUG='topic-slug' LEVEL='l300' DURATION='1h' TOTAL=30 THEME='light' OUTNAME="${SLUG}-${LEVEL}-${DURATION}"
-    (THEME is 'light' or 'dark' based on what the user chose in Phase 0E)
+    SLUG='topic-slug' LEVEL='l300' DURATION='1h' TOTAL=30 THEME='light' LANG='en' OUTNAME="${SLUG}-${LEVEL}-${DURATION}"
+    (THEME is 'light' or 'dark' based on Phase 0E. LANG is 'en' or 'ja' based on Phase 0F. Append '-ja' to OUTNAME when LANG='ja'; append '-dark' when THEME='dark'. Both suffixes can stack, e.g. aks-l300-1h-dark-ja.pptx.)
     { cat <<HEADER
     #!/usr/bin/env python3
     import os, sys
@@ -89,6 +92,7 @@ If the user requests changes, revise the plan and ask again.
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(SCRIPT_DIR)), 'skills', 'pptx-generator'))
     from pptx_utils import *
     set_theme('${THEME}')  # 'light' or 'dark' -- set before create_presentation()
+    set_language('${LANG}')  # 'en' or 'ja' -- adds Yu Gothic UI as East-Asian font when 'ja'
     TOTAL = ${TOTAL}
     def build():
         prs = create_presentation()
@@ -108,13 +112,14 @@ If the user requests changes, revise the plan and ask again.
 
 After generation, run QA in two steps:
 
-Step 1 - Programmatic QA: call run_pptx_qa_checks tool with the .pptx path and expected slide count. This runs 11 automated layout/content checks and returns a structured report with CRITICAL/MAJOR/MINOR issues.
+Step 1 - Programmatic QA: call run_pptx_qa_checks tool with the .pptx path, expected slide count, and language (LANG from Phase 0F: 'en' or 'ja'). This runs 11 automated layout/content checks, plus Japanese AI tell + mixed-style detection when language='ja', and returns a structured report with CRITICAL/MAJOR/MINOR issues.
 
 Step 2 - Subagent QA: invoke pptx-qa-subagent with a task prompt that includes:
 
 - The PPTX file path
 - The FULL programmatic QA results from Step 1 (the subagent will NOT re-run these checks - it relies on your results)
 - Expected descriptions for each slide (from the plan)
+- OUTPUT_LANGUAGE ('en' or 'ja') so the reviewer knows which language to evaluate the prose in
 - QA round number
 The subagent has FRESH EYES and will run additional content checks via markitdown and produce a structured QA report.
 
@@ -151,14 +156,16 @@ Save completion report to plans/{topic-slug}-complete.md.
 - Research only from official sources
 - No emoji - use Unicode symbols instead
 - No invented URLs - every link must be real and verified
-- No em-dashes - use hyphens
+- No em-dashes - use hyphens (Japanese mode skips this rule for body text but still avoids decorative em-dashes)
 - NEVER use task with agent_type='slide-conductor' - you ARE the conductor
-- MANDATORY STOPS using ask_user: After clarification (0B-0F), After plan (Phase 2)
+- MANDATORY STOPS using ask_user: After clarification (0B-0G), After plan (Phase 2)
 - DO NOT skip Phase 0A pre-research
 - DO NOT skip Phase 3H QA
 - DO NOT proceed past a MANDATORY STOP without calling ask_user and getting approval
 - THEME: Pass the chosen theme ('light' or 'dark') to slide-builder-subagent in each section spawn prompt so it can use theme-aware T.TEXT / T.CARD_BG etc. in generated code
+- LANGUAGE: Pass OUTPUT_LANGUAGE ('en' or 'ja') from Phase 0F to slide-builder-subagent and pptx-qa-subagent in every dispatch prompt. The assembled generator script must call set_language(LANG) right after set_theme. The QA tool must receive --language LANG.
 - DARK THEME OUTPUT NAMING: append '-dark' to OUTNAME when THEME='dark' (e.g. aks-l300-1h-dark.pptx) so both variants can coexist in outputs/slides/
+- JAPANESE OUTPUT NAMING: append '-ja' to OUTNAME when LANG='ja' (e.g. aks-l300-1h-ja.pptx, or aks-l300-1h-dark-ja.pptx when both apply) so language variants can coexist alongside the English deck
 
 ## Project-Scoped Presentations
 

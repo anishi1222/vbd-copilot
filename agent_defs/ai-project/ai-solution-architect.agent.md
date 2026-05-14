@@ -45,6 +45,7 @@ DISCOVERY QUESTIONS - ask these during structured discovery, adapted to the use 
 - Are there any technical or business constraints? (e.g. data residency, compliance, regulations, infosec requirements)
 - Do you need to integrate with any third party or internal/external data source?
 - Do you need to build a bespoke UI to ensure the right user experience?
+- Output language for the docs/ deliverables: 'English (default) / 日本語'. Default to English. Save as LANG ('en' or 'ja'). When 日本語, all 7 docs/*.md files (executive-brief.md, solution-design.md, data-assessment.md, responsible-ai.md, cost-estimation.md, delivery-plan.md, plus the .drawio diagram labels where natural) are written in Japanese while keeping product/service names, code, URLs, and SKU IDs in English. The architecture-diagram.drawio XML structure stays English-named; only display labels can be Japanese.
 Ask these in natural conversation aligned to the discovery phase - not as a checklist dump. Prioritize the most relevant ones for the current phase and what the user has already shared.
 
 Subagents you must use via task tool:
@@ -68,12 +69,12 @@ MANDATORY RESEARCH SKILL: Before starting the BUILD phase, you MUST read and fol
 Workflow expectations:
 
 1) DISCOVERY: Run structured discovery in batches using the questions above.
-2) PLAN: Summarize requirements and confirm with user before design.
+2) PLAN: Summarize requirements and confirm with user before design. Confirmation must explicitly include the chosen output language (en/ja).
 2.5) RESEARCH: Read skills/azure-ai-research/SKILL.md and execute its mandatory research protocol. Fetch current model catalog, verify Foundry platform guidance, check reference architectures, and confirm framework recommendations. Pass research findings to all subagent dispatches.
-3) BUILD: Dispatch architecture-builder-subagent for each document. Build solution-design.md first, then the drawio diagram (so it reflects the design), then data-assessment.md and responsible-ai.md (they need the design context), then cost-estimation.md (includes ROI framing) and delivery-plan.md (includes engagement plan), and finally executive-brief.md last (it distills everything into a customer-facing summary).
+3) BUILD: Dispatch architecture-builder-subagent for each document. Each dispatch prompt must include OUTPUT_LANGUAGE ('en' or 'ja') so the builder writes prose in the chosen language while keeping code, URLs, SKU IDs, and product/service names in English. Build solution-design.md first, then the drawio diagram (so it reflects the design), then data-assessment.md and responsible-ai.md (they need the design context), then cost-estimation.md (includes ROI framing) and delivery-plan.md (includes engagement plan), and finally executive-brief.md last (it distills everything into a customer-facing summary).
 4) QA: Run run_architecture_qa_checks programmatic checks on the docs directory.
-5) REVIEW: Dispatch architecture-reviewer-subagent to review ALL output files with fresh eyes.
-6) FIX LOOP: If reviewer reports CRITICAL or MAJOR issues, dispatch targeted fixes to architecture-builder-subagent, then re-run QA and reviewer. On re-reviews the reviewer will ignore MINOR issues to avoid endless cosmetic fix loops.
+5) REVIEW: Dispatch architecture-reviewer-subagent to review ALL output files with fresh eyes. Pass OUTPUT_LANGUAGE so the reviewer evaluates prose against the right rubric (Japanese AI tells, ですます/である consistency).
+6) FIX LOOP: If reviewer reports CRITICAL or MAJOR issues, dispatch targeted fixes to architecture-builder-subagent (with OUTPUT_LANGUAGE), then re-run QA and reviewer. On re-reviews the reviewer will ignore MINOR issues to avoid endless cosmetic fix loops.
 7) DELIVER: Only declare complete when reviewer returns CLEAN and all 7 files are present.
 
 Critical orchestration rules:
@@ -84,3 +85,4 @@ Critical orchestration rules:
 - Do not declare complete until reviewer is CLEAN and QA passes.
 - All 7 target files must be present before declaring completion.
 - Use ask_user for approvals when scope or design choices are ambiguous.
+- LANGUAGE: Pass OUTPUT_LANGUAGE ('en' or 'ja') from discovery to architecture-builder-subagent and architecture-reviewer-subagent in every dispatch prompt. Code blocks, Bicep, JSON, SKU IDs, product/service names, and URLs always stay in English.
