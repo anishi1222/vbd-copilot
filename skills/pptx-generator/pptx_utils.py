@@ -81,6 +81,12 @@ _DARK_SECTION_BG = RGBColor(0x0D, 0x12, 0x1F)  # Section divider background
 # Active theme -- "light" (default) or "dark"
 _ACTIVE_THEME: str = "light"
 
+# Active output language -- "en" (default) or "ja"
+# Controls East Asian typeface fallback for runs so that Japanese characters
+# render with Yu Gothic UI even when the primary Latin typeface (Segoe UI)
+# does not include CJK glyphs.
+_ACTIVE_LANGUAGE: str = "en"
+
 
 def set_theme(name: str) -> None:
     """Set the active presentation theme.  Call before ``create_presentation()``.
@@ -98,6 +104,38 @@ def set_theme(name: str) -> None:
     if name not in ("light", "dark"):
         raise ValueError(f"Unknown theme '{name}'. Use 'light' or 'dark'.")
     _ACTIVE_THEME = name
+
+
+def set_language(name: str) -> None:
+    """Set the active output language.  Call before ``create_presentation()``.
+
+    name: ``"en"`` (default, English-only output) or
+          ``"ja"`` (Japanese output -- adds Yu Gothic UI as East Asian
+          typeface fallback so that Japanese characters render correctly
+          alongside the Latin Segoe UI typeface).
+
+    The language setting only affects font handling. All slide template
+    functions and color decisions are language-agnostic. Generators that
+    target Japanese audiences should write Japanese text directly and
+    rely on this setting to map Latin typefaces to their East Asian
+    counterparts (Segoe UI -> Yu Gothic UI, Segoe UI Light -> Yu Gothic
+    UI Light, etc.).
+
+    Example::
+
+        set_language("ja")
+        prs = create_presentation()
+        create_lead_slide(prs, "Azure AI \u30c4\u30a2\u30fc", ...)
+    """
+    global _ACTIVE_LANGUAGE
+    if name not in ("en", "ja"):
+        raise ValueError(f"Unknown language '{name}'. Use 'en' or 'ja'.")
+    _ACTIVE_LANGUAGE = name
+
+
+def active_language() -> str:
+    """Return the currently active output language code (``"en"`` or ``"ja"``)."""
+    return _ACTIVE_LANGUAGE
 
 
 def _t(light_val, dark_val):
@@ -205,6 +243,52 @@ FONT_FAMILY = "Segoe UI"
 FONT_SEMIBOLD = "Segoe UI Semibold"
 FONT_LIGHT = "Segoe UI Light"
 FONT_MONO = "Courier New"
+
+# East Asian typeface fallbacks. Used only when ``set_language("ja")`` is active.
+# Yu Gothic UI ships with Windows 8.1+ and Office for Mac (PowerPoint
+# substitutes Hiragino Sans on macOS automatically when the typeface is
+# unavailable). Latin glyphs continue to render in Segoe UI; only CJK
+# characters fall back to the East Asian typeface.
+_JA_EA_FAMILY = "Yu Gothic UI"
+_JA_EA_LIGHT = "Yu Gothic UI Light"
+
+
+def _ja_ea_typeface_for(latin_typeface: str) -> str:
+    """Map a Latin typeface name to its preferred Japanese East Asian counterpart.
+
+    The bold weight implied by ``FONT_SEMIBOLD`` is carried by the run-level
+    ``font.bold`` property, so all weight variants of the Segoe UI family map
+    to the regular Yu Gothic UI family (PowerPoint applies the bold property
+    to East Asian characters too). ``Segoe UI Light`` maps to the matching
+    light Yu Gothic UI cut.
+    """
+    if latin_typeface in (FONT_LIGHT, "Segoe UI Light"):
+        return _JA_EA_LIGHT
+    return _JA_EA_FAMILY
+
+
+def _apply_run_font(run, font_name: str, *, set_ea: bool = True) -> None:
+    """Set the Latin (and optionally East Asian) typeface on a python-pptx run.
+
+    For ``set_language("ja")``, also writes an ``<a:ea typeface="..."/>``
+    element so Japanese characters in the run render in Yu Gothic UI rather
+    than falling through to PowerPoint's default CJK substitute.
+
+    Pass ``set_ea=False`` for code blocks where Japanese text is not expected
+    and where adding an East Asian typeface would break monospaced alignment.
+    """
+    run.font.name = font_name
+    if not set_ea or _ACTIVE_LANGUAGE != "ja":
+        return
+    from lxml import etree
+    from pptx.oxml.ns import qn
+
+    rPr = run._r.get_or_add_rPr()
+    for ea in rPr.findall(qn("a:ea")):
+        rPr.remove(ea)
+    ea = etree.SubElement(rPr, qn("a:ea"))
+    ea.set("typeface", _ja_ea_typeface_for(font_name))
+
 
 # Asset paths
 _ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
@@ -545,7 +629,10 @@ def _add_runs_from_markup(
         run.font.color.rgb = color
         run.font.bold = base_bold or is_markup_bold
         run.font.italic = italic
-        run.font.name = FONT_SEMIBOLD if (base_bold or is_markup_bold) else font_name
+        _apply_run_font(
+            run,
+            FONT_SEMIBOLD if (base_bold or is_markup_bold) else font_name,
+        )
         runs.append(run)
     return runs
 
@@ -943,7 +1030,7 @@ def add_rich_text(slide, parts, left, top, width, height, alignment=PP_ALIGN.LEF
         run.font.color.rgb = fmt.get("color", MS_TEXT)
         run.font.bold = fmt.get("bold", False)
         run.font.italic = fmt.get("italic", False)
-        run.font.name = fmt.get("font_name", FONT_FAMILY)
+        _apply_run_font(run, fmt.get("font_name", FONT_FAMILY))
     return tb
 
 
@@ -1125,7 +1212,7 @@ def add_gradient_textbox(
     run.font.size = Pt(font_size)
     run.font.bold = bold
     run.font.italic = italic
-    run.font.name = font_name
+    _apply_run_font(run, font_name)
 
     # Apply gradient fill on text characters.
     # OOXML schema requires fill elements (gradFill) BEFORE font elements
@@ -1873,7 +1960,9 @@ def add_code_block(slide, code, left, top, width, height=None, language=""):
         run.font.size = Pt(10)
         run.font.color.rgb = _t(MS_CODE_TEXT, _DARK_CODE_TEXT)
         run.font.bold = False
-        run.font.name = FONT_MONO
+        # set_ea=False keeps the monospaced alignment intact; code blocks
+        # are expected to contain English / ASCII content only.
+        _apply_run_font(run, FONT_MONO, set_ea=False)
     group_shapes(slide, shapes_to_group)
     return ElementBox(bg, left, top, width, height)
 
@@ -1910,7 +1999,7 @@ def add_styled_table(
             if ri == 0:
                 run = p.add_run()
                 run.text = str(val)
-                run.font.name = FONT_FAMILY
+                _apply_run_font(run, FONT_FAMILY)
                 run.font.size = Pt(font_size + 1)
                 run.font.bold = True
                 run.font.color.rgb = MS_WHITE
@@ -3806,7 +3895,7 @@ def add_title_icon_badge(
     run.font.size = Pt(int(float(size) / 914400 * 72 * 0.45))
     run.font.color.rgb = text_color
     run.font.bold = True
-    run.font.name = FONT_FAMILY
+    _apply_run_font(run, FONT_FAMILY)
     return shape
 
 
@@ -4412,7 +4501,7 @@ def add_bar_chart(slide, data, left, top, width, height, chart_title="", colors=
         chart.chart_title.text_frame.text = chart_title
         for p in chart.chart_title.text_frame.paragraphs:
             for run in p.runs:
-                run.font.name = FONT_SEMIBOLD
+                _apply_run_font(run, FONT_SEMIBOLD)
                 run.font.size = Pt(TEXT_BODY)
                 run.font.color.rgb = MS_DARK_BLUE
 
@@ -4460,7 +4549,7 @@ def add_donut_chart(
         chart.chart_title.text_frame.text = chart_title
         for p in chart.chart_title.text_frame.paragraphs:
             for run in p.runs:
-                run.font.name = FONT_SEMIBOLD
+                _apply_run_font(run, FONT_SEMIBOLD)
                 run.font.size = Pt(TEXT_BODY)
                 run.font.color.rgb = MS_DARK_BLUE
 
