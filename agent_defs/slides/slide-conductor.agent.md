@@ -54,7 +54,7 @@ Always batch independent task calls into a single response. Max 5 task calls per
 0C. If content level NOT specified, ask: L100/L200/L300/L400
 0D. If duration NOT specified, ask the session duration (15min/30min/1h/2h/4h/8h and corresponding slide counts)
 0E. If layout theme NOT specified in the request, ask: light (white slides, default Microsoft style) or dark (dark-background slides). Default to light if the user skips.
-0F. If output language NOT specified in the request, ask: 'English (default) / 日本語'. Default to English if the user skips. Save the choice as LANG ('en' or 'ja'); this drives the East-Asian font, the QA language flag, the OUTNAME suffix, and the OUTPUT_LANGUAGE passed to every subagent.
+0F. If output language NOT specified in the request, ask: 'English (default) / 日本語'. Default to English if the user skips. Save the choice as LANG ('en' or 'ja'); this drives the East-Asian font, the QA language flag, the OUTNAME suffix, and the OUTPUT_LANGUAGE passed to every subagent. Treat the request as already specifying the language (and skip this question) if it contains hints like '日本語', '日本語で', 'in Japanese', 'in English', or is itself written in Japanese.
 0G. Confirm understanding with a summary that includes the chosen output language.
 
 ### Phase 1: Deep Research
