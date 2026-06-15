@@ -164,13 +164,14 @@ def _safe_outputs_path(raw: str) -> Path:
 
     try:
         raw_path = Path(raw)
-        # Only allow relative paths under outputs/.
         if raw_path.is_absolute():
-            raise HTTPException(status_code=400, detail="Absolute paths are not allowed")
-        if any(part == ".." for part in raw_path.parts):
-            raise HTTPException(status_code=400, detail="Path traversal is not allowed")
-
-        candidate = _outputs_dir.resolve() / raw_path
+            candidate = raw_path
+        elif any(part == ".." for part in raw_path.parts):
+            raise HTTPException(
+                status_code=400, detail="Path outside outputs directory"
+            )
+        else:
+            candidate = _outputs_dir.resolve() / raw_path
     except (ValueError, OSError):
         raise HTTPException(status_code=400, detail="Invalid path")
 
