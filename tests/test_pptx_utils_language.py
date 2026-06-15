@@ -153,8 +153,12 @@ class TestPublicHelpersInJapaneseMode:
         prs = pu.create_presentation()
         slide = pu.new_blank_slide(prs)
         tb = pu.add_textbox(
-            slide, "\u3053\u3093\u306b\u3061\u306f Azure", Inches(1), Inches(1),
-            Inches(8), Inches(1),
+            slide,
+            "\u3053\u3093\u306b\u3061\u306f Azure",
+            Inches(1),
+            Inches(1),
+            Inches(8),
+            Inches(1),
         )
         run = tb.text_frame.paragraphs[0].runs[0]
         rPr = _rPr(run)
@@ -164,7 +168,12 @@ class TestPublicHelpersInJapaneseMode:
         prs = pu.create_presentation()
         slide = pu.new_blank_slide(prs)
         tb = pu.add_textbox(
-            slide, "Hello world", Inches(1), Inches(1), Inches(8), Inches(1),
+            slide,
+            "Hello world",
+            Inches(1),
+            Inches(1),
+            Inches(8),
+            Inches(1),
         )
         run = tb.text_frame.paragraphs[0].runs[0]
         rPr = _rPr(run)
@@ -175,8 +184,12 @@ class TestPublicHelpersInJapaneseMode:
         prs = pu.create_presentation()
         slide = pu.new_blank_slide(prs)
         tb = pu.add_textbox(
-            slide, "Use **Copilot** here", Inches(1), Inches(1),
-            Inches(8), Inches(1),
+            slide,
+            "Use **Copilot** here",
+            Inches(1),
+            Inches(1),
+            Inches(8),
+            Inches(1),
         )
         runs = tb.text_frame.paragraphs[0].runs
         assert len(runs) == 3
@@ -195,7 +208,11 @@ class TestPublicHelpersInJapaneseMode:
         prs = pu.create_presentation()
         slide = pu.new_blank_slide(prs)
         pu.add_code_block(
-            slide, "def foo():\n    return 1", Inches(1), Inches(1), Inches(8),
+            slide,
+            "def foo():\n    return 1",
+            Inches(1),
+            Inches(1),
+            Inches(8),
         )
 
         def _walk_runs(shape):
@@ -207,7 +224,8 @@ class TestPublicHelpersInJapaneseMode:
                     yield from p.runs
 
         code_runs = [
-            r for r in _walk_runs(slide.shapes[0])
+            r
+            for r in _walk_runs(slide.shapes[0])
             if _typeface(_rPr(r), "a:latin") == "Courier New"
         ]
         assert code_runs, "no Courier New runs found in code block"
@@ -220,9 +238,16 @@ class TestPublicHelpersInJapaneseMode:
         prs = pu.create_presentation()
         slide = pu.new_blank_slide(prs)
         tb = pu.add_gradient_textbox(
-            slide, "\u30b0\u30e9\u30c7\u30fc\u30b7\u30e7\u30f3 Azure",
-            Inches(1), Inches(1), Inches(8), Inches(1),
-            pu.MS_BLUE, pu.MS_LIGHT_BLUE, font_size=28, bold=True,
+            slide,
+            "\u30b0\u30e9\u30c7\u30fc\u30b7\u30e7\u30f3 Azure",
+            Inches(1),
+            Inches(1),
+            Inches(8),
+            Inches(1),
+            pu.MS_BLUE,
+            pu.MS_LIGHT_BLUE,
+            font_size=28,
+            bold=True,
         )
         run = tb.text_frame.paragraphs[0].runs[0]
         rPr = _rPr(run)
@@ -242,9 +267,14 @@ class TestSaveRoundTrip:
         prs = pu.create_presentation()
         slide = pu.new_blank_slide(prs)
         pu.add_textbox(
-            slide, "Azure Container Apps \u306e\u5165\u9580",
-            Inches(1), Inches(1), Inches(11), Inches(1),
-            font_size=28, bold=True,
+            slide,
+            "Azure Container Apps \u306e\u5165\u9580",
+            Inches(1),
+            Inches(1),
+            Inches(11),
+            Inches(1),
+            font_size=28,
+            bold=True,
         )
         pu.add_bullet_list(
             slide,
@@ -252,7 +282,9 @@ class TestSaveRoundTrip:
                 "\u30b3\u30f3\u30c6\u30ca\u3092 **\u30b5\u30fc\u30d0\u30fc\u30ec\u30b9** \u3067\u52d5\u304b\u3059",
                 "\u30b9\u30b1\u30fc\u30ea\u30f3\u30b0\u3092\u81ea\u52d5\u5316",
             ],
-            Inches(1), Inches(2.5), Inches(11),
+            Inches(1),
+            Inches(2.5),
+            Inches(11),
         )
         out = tmp_path / "ja_smoke.pptx"
         pu.save_presentation(prs, str(out))

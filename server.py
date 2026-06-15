@@ -175,44 +175,62 @@ def _safe_outputs_path(raw: str) -> Path:
 
 
 def _safe_output_is_file(path: Path) -> bool:
-    return _ensure_safe_outputs_path(path).is_file()  # codeql[py/path-injection]: validated outputs/ path.
+    return _ensure_safe_outputs_path(
+        path
+    ).is_file()  # codeql[py/path-injection]: validated outputs/ path.
 
 
 def _safe_output_is_dir(path: Path) -> bool:
-    return _ensure_safe_outputs_path(path).is_dir()  # codeql[py/path-injection]: validated outputs/ path.
+    return _ensure_safe_outputs_path(
+        path
+    ).is_dir()  # codeql[py/path-injection]: validated outputs/ path.
 
 
 def _safe_output_exists(path: Path) -> bool:
-    return _ensure_safe_outputs_path(path).exists()  # codeql[py/path-injection]: validated outputs/ path.
+    return _ensure_safe_outputs_path(
+        path
+    ).exists()  # codeql[py/path-injection]: validated outputs/ path.
 
 
 def _safe_output_stat(path: Path) -> os.stat_result:
-    return _ensure_safe_outputs_path(path).stat()  # codeql[py/path-injection]: validated outputs/ path.
+    return _ensure_safe_outputs_path(
+        path
+    ).stat()  # codeql[py/path-injection]: validated outputs/ path.
 
 
 def _safe_output_read_text(path: Path) -> str:
-    return _ensure_safe_outputs_path(path).read_text(  # codeql[py/path-injection]: validated outputs/ path.
+    return _ensure_safe_outputs_path(
+        path
+    ).read_text(  # codeql[py/path-injection]: validated outputs/ path.
         encoding="utf-8",
         errors="replace",
     )
 
 
 def _safe_output_read_bytes(path: Path) -> bytes:
-    return _ensure_safe_outputs_path(path).read_bytes()  # codeql[py/path-injection]: validated outputs/ path.
+    return _ensure_safe_outputs_path(
+        path
+    ).read_bytes()  # codeql[py/path-injection]: validated outputs/ path.
 
 
 def _safe_output_unlink(path: Path) -> None:
-    _ensure_safe_outputs_path(path).unlink()  # codeql[py/path-injection]: validated outputs/ path.
+    _ensure_safe_outputs_path(
+        path
+    ).unlink()  # codeql[py/path-injection]: validated outputs/ path.
 
 
 def _safe_output_rmtree(path: Path) -> None:
     import shutil
 
-    shutil.rmtree(str(_ensure_safe_outputs_path(path)))  # codeql[py/path-injection]: validated outputs/ path.
+    shutil.rmtree(
+        str(_ensure_safe_outputs_path(path))
+    )  # codeql[py/path-injection]: validated outputs/ path.
 
 
 def _safe_output_mkdir(path: Path) -> None:
-    _ensure_safe_outputs_path(path).mkdir(parents=True, exist_ok=True)  # codeql[py/path-injection]: validated outputs/ path.
+    _ensure_safe_outputs_path(path).mkdir(
+        parents=True, exist_ok=True
+    )  # codeql[py/path-injection]: validated outputs/ path.
 
 
 def _safe_output_relative(path: Path) -> str:
@@ -220,12 +238,16 @@ def _safe_output_relative(path: Path) -> str:
 
 
 def _safe_zip_write(zf: Any, path: Path, arcname: str) -> None:
-    zf.write(str(_ensure_safe_outputs_path(path)), arcname)  # codeql[py/path-injection]: validated outputs/ path.
+    zf.write(
+        str(_ensure_safe_outputs_path(path)), arcname
+    )  # codeql[py/path-injection]: validated outputs/ path.
 
 
 def _safe_file_response(path: Path, filename: str, media_type: str) -> FileResponse:
     safe = _ensure_safe_outputs_path(path)
-    return FileResponse(path=str(safe), filename=filename, media_type=media_type)  # codeql[py/path-injection]: validated outputs/ path.
+    return FileResponse(
+        path=str(safe), filename=filename, media_type=media_type
+    )  # codeql[py/path-injection]: validated outputs/ path.
 
 
 # ---------------------------------------------------------------------------
@@ -1434,10 +1456,15 @@ def _clean_output_title(stem: str) -> str:
         if _duration_token(lower):
             i += 1
             continue
-        if lower.isdigit() and i + 1 < len(parts) and parts[i + 1].lower() in {
-            "min",
-            "h",
-        }:
+        if (
+            lower.isdigit()
+            and i + 1 < len(parts)
+            and parts[i + 1].lower()
+            in {
+                "min",
+                "h",
+            }
+        ):
             i += 2
             continue
         cleaned.append(parts[i])
@@ -1483,7 +1510,9 @@ async def get_output_metadata(path: str) -> JSONResponse:
         try:
             from pptx import Presentation as _Prs
 
-            prs = _Prs(str(_ensure_safe_outputs_path(resolved)))  # codeql[py/path-injection]: validated outputs/ path.
+            prs = _Prs(
+                str(_ensure_safe_outputs_path(resolved))
+            )  # codeql[py/path-injection]: validated outputs/ path.
             meta["slideCount"] = len(prs.slides)
         except Exception:
             pass
@@ -1604,7 +1633,9 @@ async def preview_pptx(body: PptxPreviewRequest) -> JSONResponse:
     try:
         from pptx import Presentation
 
-        prs = Presentation(str(_ensure_safe_outputs_path(resolved)))  # codeql[py/path-injection]: validated outputs/ path.
+        prs = Presentation(
+            str(_ensure_safe_outputs_path(resolved))
+        )  # codeql[py/path-injection]: validated outputs/ path.
         for slide in list(prs.slides):
             notes_text = ""
             title_text = ""

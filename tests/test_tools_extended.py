@@ -366,9 +366,7 @@ class TestRunDocsQaChecksTool:
     async def test_language_ja_forwarded_to_subprocess(self):
         mock_result = MagicMock(returncode=0, stdout="OK")
         with patch("subprocess.run", return_value=mock_result) as mock_run:
-            await _call(
-                run_docs_qa_checks, {"project_dir": "/tmp/p", "language": "ja"}
-            )
+            await _call(run_docs_qa_checks, {"project_dir": "/tmp/p", "language": "ja"})
         cmd = mock_run.call_args[0][0]
         assert cmd[cmd.index("--language") + 1] == "ja"
 

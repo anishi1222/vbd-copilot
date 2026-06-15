@@ -270,9 +270,7 @@ class TestQaToolParamValidation:
             RunDocsQaChecksParams(project_dir="/tmp/p", language="ja").language == "ja"
         )
         assert (
-            RunHackathonQaChecksParams(
-                hackathon_dir="/tmp/h", language="ja"
-            ).language
+            RunHackathonQaChecksParams(hackathon_dir="/tmp/h", language="ja").language
             == "ja"
         )
 
