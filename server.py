@@ -141,7 +141,8 @@ def _store() -> Any:
 
 def _ensure_safe_outputs_path(path: Path) -> Path:
     try:
-        resolved = path.resolve()  # codeql[py/path-injection]: path is constrained to outputs/ below before use.
+        # lgtm [py/path-injection] Path is checked against outputs/ below.
+        resolved = path.resolve()
     except (ValueError, OSError, RuntimeError):
         raise HTTPException(status_code=400, detail="Invalid path")
 
@@ -175,62 +176,59 @@ def _safe_outputs_path(raw: str) -> Path:
 
 
 def _safe_output_is_file(path: Path) -> bool:
-    return _ensure_safe_outputs_path(
-        path
-    ).is_file()  # codeql[py/path-injection]: validated outputs/ path.
+    safe = _ensure_safe_outputs_path(path)
+    # lgtm [py/path-injection] Path was validated under outputs/.
+    return safe.is_file()
 
 
 def _safe_output_is_dir(path: Path) -> bool:
-    return _ensure_safe_outputs_path(
-        path
-    ).is_dir()  # codeql[py/path-injection]: validated outputs/ path.
+    safe = _ensure_safe_outputs_path(path)
+    # lgtm [py/path-injection] Path was validated under outputs/.
+    return safe.is_dir()
 
 
 def _safe_output_exists(path: Path) -> bool:
-    return _ensure_safe_outputs_path(
-        path
-    ).exists()  # codeql[py/path-injection]: validated outputs/ path.
+    safe = _ensure_safe_outputs_path(path)
+    # lgtm [py/path-injection] Path was validated under outputs/.
+    return safe.exists()
 
 
 def _safe_output_stat(path: Path) -> os.stat_result:
-    return _ensure_safe_outputs_path(
-        path
-    ).stat()  # codeql[py/path-injection]: validated outputs/ path.
+    safe = _ensure_safe_outputs_path(path)
+    # lgtm [py/path-injection] Path was validated under outputs/.
+    return safe.stat()
 
 
 def _safe_output_read_text(path: Path) -> str:
-    return _ensure_safe_outputs_path(
-        path
-    ).read_text(  # codeql[py/path-injection]: validated outputs/ path.
-        encoding="utf-8",
-        errors="replace",
-    )
+    safe = _ensure_safe_outputs_path(path)
+    # lgtm [py/path-injection] Path was validated under outputs/.
+    return safe.read_text(encoding="utf-8", errors="replace")
 
 
 def _safe_output_read_bytes(path: Path) -> bytes:
-    return _ensure_safe_outputs_path(
-        path
-    ).read_bytes()  # codeql[py/path-injection]: validated outputs/ path.
+    safe = _ensure_safe_outputs_path(path)
+    # lgtm [py/path-injection] Path was validated under outputs/.
+    return safe.read_bytes()
 
 
 def _safe_output_unlink(path: Path) -> None:
-    _ensure_safe_outputs_path(
-        path
-    ).unlink()  # codeql[py/path-injection]: validated outputs/ path.
+    safe = _ensure_safe_outputs_path(path)
+    # lgtm [py/path-injection] Path was validated under outputs/.
+    safe.unlink()
 
 
 def _safe_output_rmtree(path: Path) -> None:
     import shutil
 
-    shutil.rmtree(
-        str(_ensure_safe_outputs_path(path))
-    )  # codeql[py/path-injection]: validated outputs/ path.
+    safe = _ensure_safe_outputs_path(path)
+    # lgtm [py/path-injection] Path was validated under outputs/.
+    shutil.rmtree(str(safe))
 
 
 def _safe_output_mkdir(path: Path) -> None:
-    _ensure_safe_outputs_path(path).mkdir(
-        parents=True, exist_ok=True
-    )  # codeql[py/path-injection]: validated outputs/ path.
+    safe = _ensure_safe_outputs_path(path)
+    # lgtm [py/path-injection] Path was validated under outputs/.
+    safe.mkdir(parents=True, exist_ok=True)
 
 
 def _safe_output_relative(path: Path) -> str:
@@ -238,16 +236,15 @@ def _safe_output_relative(path: Path) -> str:
 
 
 def _safe_zip_write(zf: Any, path: Path, arcname: str) -> None:
-    zf.write(
-        str(_ensure_safe_outputs_path(path)), arcname
-    )  # codeql[py/path-injection]: validated outputs/ path.
+    safe = _ensure_safe_outputs_path(path)
+    # lgtm [py/path-injection] Path was validated under outputs/.
+    zf.write(str(safe), arcname)
 
 
 def _safe_file_response(path: Path, filename: str, media_type: str) -> FileResponse:
     safe = _ensure_safe_outputs_path(path)
-    return FileResponse(
-        path=str(safe), filename=filename, media_type=media_type
-    )  # codeql[py/path-injection]: validated outputs/ path.
+    # lgtm [py/path-injection] Path was validated under outputs/.
+    return FileResponse(path=str(safe), filename=filename, media_type=media_type)
 
 
 # ---------------------------------------------------------------------------
@@ -1510,9 +1507,9 @@ async def get_output_metadata(path: str) -> JSONResponse:
         try:
             from pptx import Presentation as _Prs
 
-            prs = _Prs(
-                str(_ensure_safe_outputs_path(resolved))
-            )  # codeql[py/path-injection]: validated outputs/ path.
+            safe = _ensure_safe_outputs_path(resolved)
+            # lgtm [py/path-injection] Path was validated under outputs/.
+            prs = _Prs(str(safe))
             meta["slideCount"] = len(prs.slides)
         except Exception:
             pass
@@ -1524,7 +1521,8 @@ async def get_output_metadata(path: str) -> JSONResponse:
         if _safe_plan_stem(stem):
             for suffix in ["-complete.md", "-plan.md"]:
                 plan = plans_dir / (stem + suffix)
-                if plan.is_file():  # codeql[py/path-injection]: stem is filename-only and allowlisted above.
+                # lgtm [py/path-injection] Stem is filename-only and allowlisted.
+                if plan.is_file():
                     # Return only the relative path — never expose absolute server paths.
                     meta["planFile"] = f"plans/{plan.name}"
                     break
@@ -1633,9 +1631,9 @@ async def preview_pptx(body: PptxPreviewRequest) -> JSONResponse:
     try:
         from pptx import Presentation
 
-        prs = Presentation(
-            str(_ensure_safe_outputs_path(resolved))
-        )  # codeql[py/path-injection]: validated outputs/ path.
+        safe = _ensure_safe_outputs_path(resolved)
+        # lgtm [py/path-injection] Path was validated under outputs/.
+        prs = Presentation(str(safe))
         for slide in list(prs.slides):
             notes_text = ""
             title_text = ""
