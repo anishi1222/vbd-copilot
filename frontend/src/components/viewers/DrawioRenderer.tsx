@@ -55,9 +55,16 @@ export function DrawioRenderer({ xml }: { xml: string }) {
       var cfg = ${safeConfig};
       document.getElementById('drawio-target').setAttribute('data-mxgraph', JSON.stringify(cfg));
     } catch(e) {
-      document.getElementById('drawio-target').innerHTML =
-        '<div class="drawio-error"><strong>Could not render diagram</strong>'
-        + '<pre>' + e.message + '<\\/pre></div>';
+      var target = document.getElementById('drawio-target');
+      var error = document.createElement('div');
+      error.className = 'drawio-error';
+      var title = document.createElement('strong');
+      title.textContent = 'Could not render diagram';
+      var details = document.createElement('pre');
+      details.textContent = e && e.message ? e.message : String(e);
+      error.appendChild(title);
+      error.appendChild(details);
+      target.replaceChildren(error);
     }
   <\/script>
   <script src="https://viewer.diagrams.net/js/viewer-static.min.js"><\/script>
@@ -81,26 +88,6 @@ export function DrawioRenderer({ xml }: { xml: string }) {
     },
     [],
   );
-
-  const handleExportSvg = useCallback(() => {
-    const win = iframeRef.current?.contentWindow;
-    if (!win) return;
-    try {
-      const svgEl = win.document.querySelector("svg");
-      if (!svgEl) return;
-      const serializer = new XMLSerializer();
-      const svgStr = serializer.serializeToString(svgEl);
-      const blob = new Blob([svgStr], { type: "image/svg+xml" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "architecture-diagram.svg";
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      // If cross-origin blocks access, silently ignore
-    }
-  }, []);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -140,12 +127,12 @@ export function DrawioRenderer({ xml }: { xml: string }) {
           />
         </Tooltip>
         <div style={{ flex: 1 }} />
-        <Tooltip content="Export as SVG" relationship="label">
+        <Tooltip content="SVG export is unavailable in sandboxed preview" relationship="label">
           <Button
             appearance="subtle"
             size="small"
             icon={<ArrowDownload20Regular />}
-            onClick={handleExportSvg}
+            disabled
           >
             SVG
           </Button>
@@ -173,7 +160,7 @@ export function DrawioRenderer({ xml }: { xml: string }) {
           ref={iframeRef}
           srcDoc={srcDoc}
           onLoad={() => setLoaded(true)}
-          sandbox="allow-scripts allow-same-origin"
+          sandbox="allow-scripts"
           style={{
             width: "100%",
             height: "100%",

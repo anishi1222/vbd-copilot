@@ -1434,7 +1434,7 @@ async def preview_pptx(body: PptxPreviewRequest) -> JSONResponse:
         raise HTTPException(status_code=400, detail="Not a .pptx file")
 
     # ── Cache key ─────────────────────────────────────────────────────────
-    file_hash = hashlib.md5(
+    file_hash = hashlib.sha256(
         f"{resolved.name}:{resolved.stat().st_mtime}:{body.max_width}".encode()
     ).hexdigest()[:12]
     cache_dir = _outputs_dir / "slides" / ".img_cache" / file_hash
