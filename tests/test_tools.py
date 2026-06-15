@@ -2,6 +2,7 @@
 
 import json
 import pytest
+import urllib.parse
 from unittest.mock import MagicMock
 
 from tools import (
@@ -38,7 +39,7 @@ class TestParseBingResults:
         results = _parse_bing_results(html, 5)
         assert len(results) == 1
         assert results[0]["title"] == "Example Title"
-        assert "example.com" in results[0]["url"]
+        assert urllib.parse.urlparse(results[0]["url"]).netloc == "example.com"
         assert "snippet" in results[0]["snippet"]
 
     def test_parse_multiple_results(self):
@@ -162,7 +163,7 @@ class TestBingSearchHelpers:
         monkeypatch.setattr(urllib.request, "urlopen", capture_urlopen)
         _bing_html_search("azure aks", 3)
         assert len(captured_urls) == 1
-        assert "bing.com" in captured_urls[0]
+        assert urllib.parse.urlparse(captured_urls[0]).netloc == "www.bing.com"
         assert "azure" in captured_urls[0]
 
     def test_bing_api_search_parses_response(self, monkeypatch):
@@ -269,9 +270,7 @@ class TestQaToolParamValidation:
             RunDocsQaChecksParams(project_dir="/tmp/p", language="ja").language == "ja"
         )
         assert (
-            RunHackathonQaChecksParams(
-                hackathon_dir="/tmp/h", language="ja"
-            ).language
+            RunHackathonQaChecksParams(hackathon_dir="/tmp/h", language="ja").language
             == "ja"
         )
 

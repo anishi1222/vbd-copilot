@@ -33,17 +33,42 @@ PLACEHOLDER_RE = re.compile(
 )
 
 # Emoji detection (common emoji Unicode ranges)
-EMOJI_RE = re.compile(
-    "[\U0001f600-\U0001f64f"  # emoticons
-    "\U0001f300-\U0001f5ff"  # symbols & pictographs
-    "\U0001f680-\U0001f6ff"  # transport & map
-    "\U0001f900-\U0001f9ff"  # supplemental symbols
-    "\U00002702-\U000027b0"  # dingbats
-    "\U0000fe00-\U0000fe0f"  # variation selectors
-    "\U0000200d"  # zero width joiner
-    "\U00002600-\U000026ff"  # misc symbols
-    "]",
+_EMOJI_RANGES = (
+    (0x1F600, 0x1F64F),
+    (0x1F300, 0x1F5FF),
+    (0x1F680, 0x1F6FF),
+    (0x1F900, 0x1F9FF),
+    (0x2702, 0x27B0),
+    (0xFE00, 0xFE0F),
+    (0x200D, 0x200D),
+    (0x2600, 0x26FF),
 )
+
+
+class _EmojiMatch:
+    def __init__(self, char: str) -> None:
+        self._char = char
+
+    def group(self) -> str:
+        return self._char
+
+
+def _is_emoji(char: str) -> bool:
+    codepoint = ord(char)
+    return any(start <= codepoint <= end for start, end in _EMOJI_RANGES)
+
+
+class _EmojiMatcher:
+    def finditer(self, text: str):
+        for char in text:
+            if _is_emoji(char):
+                yield _EmojiMatch(char)
+
+    def findall(self, text: str) -> list[str]:
+        return [match.group() for match in self.finditer(text)]
+
+
+EMOJI_RE = _EmojiMatcher()
 
 # Em-dash
 EM_DASH_RE = re.compile(r"\u2014")
@@ -51,26 +76,48 @@ EM_DASH_RE = re.compile(r"\u2014")
 # Japanese AI tells -- formulaic phrases that read as machine-translated or
 # committee-written Japanese. Detected only when language='ja'.
 JAPANESE_AI_TELL_PATTERNS = [
-    (re.compile(r"\u3068\u8a00\u3048\u308b\u3067\u3057\u3087\u3046"),
-     "Hedging cliche '\u3068\u8a00\u3048\u308b\u3067\u3057\u3087\u3046'"),
-    (re.compile(r"\u306b\u3064\u3044\u3066\u8ff0\u3079\u307e\u3059"),
-     "Formulaic narration '\u306b\u3064\u3044\u3066\u8ff0\u3079\u307e\u3059'"),
-    (re.compile(r"\u304c\u6328\u3052\u3089\u308c\u307e\u3059"),
-     "Formulaic enumeration '\u304c\u6328\u3052\u3089\u308c\u307e\u3059'"),
-    (re.compile(r"\u3059\u308b\u3053\u3068\u304c\u3067\u304d\u307e\u3059"),
-     "Verbose construction '\u3059\u308b\u3053\u3068\u304c\u3067\u304d\u307e\u3059' (use '\u3067\u304d\u307e\u3059')"),
-    (re.compile(r"\u3059\u308b\u3053\u3068\u304c\u53ef\u80fd\u3067\u3059"),
-     "Verbose construction '\u3059\u308b\u3053\u3068\u304c\u53ef\u80fd\u3067\u3059' (use '\u3067\u304d\u307e\u3059')"),
-    (re.compile(r"\u3068\u8003\u3048\u3089\u308c\u307e\u3059"),
-     "Vague hedge '\u3068\u8003\u3048\u3089\u308c\u307e\u3059'"),
-    (re.compile(r"\u3068\u8a00\u3063\u3066\u3082\u904e\u8a00\u3067\u306f\u3042\u308a\u307e\u305b\u3093"),
-     "Cliche hyperbole '\u3068\u8a00\u3063\u3066\u3082\u904e\u8a00\u3067\u306f\u3042\u308a\u307e\u305b\u3093'"),
-    (re.compile(r"\u4ee5\u4e0a\u306e\u3053\u3068\u304b\u3089"),
-     "Formulaic conclusion '\u4ee5\u4e0a\u306e\u3053\u3068\u304b\u3089'"),
+    (
+        re.compile(r"\u3068\u8a00\u3048\u308b\u3067\u3057\u3087\u3046"),
+        "Hedging cliche '\u3068\u8a00\u3048\u308b\u3067\u3057\u3087\u3046'",
+    ),
+    (
+        re.compile(r"\u306b\u3064\u3044\u3066\u8ff0\u3079\u307e\u3059"),
+        "Formulaic narration '\u306b\u3064\u3044\u3066\u8ff0\u3079\u307e\u3059'",
+    ),
+    (
+        re.compile(r"\u304c\u6328\u3052\u3089\u308c\u307e\u3059"),
+        "Formulaic enumeration '\u304c\u6328\u3052\u3089\u308c\u307e\u3059'",
+    ),
+    (
+        re.compile(r"\u3059\u308b\u3053\u3068\u304c\u3067\u304d\u307e\u3059"),
+        "Verbose construction '\u3059\u308b\u3053\u3068\u304c\u3067\u304d\u307e\u3059' (use '\u3067\u304d\u307e\u3059')",
+    ),
+    (
+        re.compile(r"\u3059\u308b\u3053\u3068\u304c\u53ef\u80fd\u3067\u3059"),
+        "Verbose construction '\u3059\u308b\u3053\u3068\u304c\u53ef\u80fd\u3067\u3059' (use '\u3067\u304d\u307e\u3059')",
+    ),
+    (
+        re.compile(r"\u3068\u8003\u3048\u3089\u308c\u307e\u3059"),
+        "Vague hedge '\u3068\u8003\u3048\u3089\u308c\u307e\u3059'",
+    ),
+    (
+        re.compile(
+            r"\u3068\u8a00\u3063\u3066\u3082\u904e\u8a00\u3067\u306f\u3042\u308a\u307e\u305b\u3093"
+        ),
+        "Cliche hyperbole '\u3068\u8a00\u3063\u3066\u3082\u904e\u8a00\u3067\u306f\u3042\u308a\u307e\u305b\u3093'",
+    ),
+    (
+        re.compile(r"\u4ee5\u4e0a\u306e\u3053\u3068\u304b\u3089"),
+        "Formulaic conclusion '\u4ee5\u4e0a\u306e\u3053\u3068\u304b\u3089'",
+    ),
 ]
 
-_JA_POLITE_RE = re.compile(r"(\u3067\u3059\u3002|\u307e\u3059\u3002|\u307e\u3057\u305f\u3002)")
-_JA_PLAIN_RE = re.compile(r"(\u3060\u3002|\u3067\u3042\u308b\u3002|\u3060\u3063\u305f\u3002|\u3067\u3042\u3063\u305f\u3002)")
+_JA_POLITE_RE = re.compile(
+    r"(\u3067\u3059\u3002|\u307e\u3059\u3002|\u307e\u3057\u305f\u3002)"
+)
+_JA_PLAIN_RE = re.compile(
+    r"(\u3060\u3002|\u3067\u3042\u308b\u3002|\u3060\u3063\u305f\u3002|\u3067\u3042\u3063\u305f\u3002)"
+)
 _JA_MIXED_THRESHOLD = 3
 
 # URL-like patterns
@@ -573,9 +620,7 @@ def run_all_checks(
             )
         )
     else:
-        checks.append(
-            ("guide_em_dashes", lambda: check_em_dashes(guide_text, "guide"))
-        )
+        checks.append(("guide_em_dashes", lambda: check_em_dashes(guide_text, "guide")))
 
     for check_name, check_fn in checks:
         try:

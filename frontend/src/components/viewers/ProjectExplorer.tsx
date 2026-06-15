@@ -21,6 +21,7 @@ import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import { readFile, listOutputs, listGroupedOutputs } from "@/api/client";
 import type { OutputFile } from "@/api/types";
+import { stripHtmlComments } from "@/utils/markdown";
 import { DrawioRenderer } from "./DrawioRenderer";
 
 interface TreeNode {
@@ -241,6 +242,10 @@ export function ProjectExplorer() {
 
   const isMarkdown = selectedFile.endsWith(".md");
   const isDrawio = selectedFile.endsWith(".drawio");
+  const sanitizedMarkdown = useMemo(
+    () => stripHtmlComments(fileContent),
+    [fileContent],
+  );
 
   if (loading) {
     return (
@@ -392,7 +397,7 @@ export function ProjectExplorer() {
                 remarkPlugins={[remarkGfm]}
                 rehypePlugins={[rehypeHighlight]}
               >
-                {fileContent.replace(/<!--[\s\S]*?-->/g, "")}
+                {sanitizedMarkdown}
               </ReactMarkdown>
             </div>
           ) : (

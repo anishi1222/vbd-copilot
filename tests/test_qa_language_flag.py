@@ -43,9 +43,13 @@ docs_qa = _load("docs_qa_checks_lang", "skills/code-project/docs_qa_checks.py")
 # Sample Japanese fragments used in tests.
 JA_AI_TELL_LINE = "\u672c\u8cc7\u6599\u3067\u306f\u30b5\u30fc\u30d3\u30b9\u306b\u3064\u3044\u3066\u8ff0\u3079\u307e\u3059\u3002"  # 「〜について述べます」
 JA_VERBOSE = "\u3053\u308c\u306b\u3088\u308a\u30c7\u30fc\u30bf\u3092\u53d6\u5f97\u3059\u308b\u3053\u3068\u304c\u3067\u304d\u307e\u3059\u3002"  # 「することができます」
-JA_POLITE_LINE = "\u3053\u308c\u306f\u30b5\u30f3\u30d7\u30eb\u3067\u3059\u3002"  # 「です。」
+JA_POLITE_LINE = (
+    "\u3053\u308c\u306f\u30b5\u30f3\u30d7\u30eb\u3067\u3059\u3002"  # 「です。」
+)
 JA_PLAIN_LINE = "\u3053\u308c\u306f\u30b5\u30f3\u30d7\u30eb\u3060\u3002"  # 「だ。」
-JA_FORMAL_LINE = "\u3053\u308c\u306f\u898f\u5b9a\u3067\u3042\u308b\u3002"  # 「である。」
+JA_FORMAL_LINE = (
+    "\u3053\u308c\u306f\u898f\u5b9a\u3067\u3042\u308b\u3002"  # 「である。」
+)
 EM_DASH_LINE = "Microsoft Azure \u2014 the cloud platform."
 
 
@@ -102,9 +106,7 @@ class TestPptxLanguageFlag:
         prs = _make_pptx_prs(["Title", "Body content"])
         with pytest.MonkeyPatch.context() as mp:
             mp.setattr(pptx_qa, "Presentation", lambda _path: prs)
-            report = pptx_qa.run_all_checks(
-                str(tmp_path / "fake.pptx"), language="ja"
-            )
+            report = pptx_qa.run_all_checks(str(tmp_path / "fake.pptx"), language="ja")
         assert report["language"] == "ja"
 
     def test_japanese_ai_tells_only_run_when_ja(self):
@@ -123,7 +125,8 @@ class TestPptxLanguageFlag:
     def test_japanese_mixed_styles_flag_only_when_threshold_met(self):
         # Polite count = 4, plain count = 4 -> should flag.
         notes = (
-            (JA_POLITE_LINE + "\n") * 4 + (JA_PLAIN_LINE + "\n") * 2
+            (JA_POLITE_LINE + "\n") * 4
+            + (JA_PLAIN_LINE + "\n") * 2
             + (JA_FORMAL_LINE + "\n") * 2
         )
         prs = _make_pptx_prs([""], notes_texts=[notes])
@@ -191,9 +194,7 @@ class TestDemoLanguageFlag:
 
     def test_ja_skips_em_dash_in_guide(self, tmp_path):
         guide = _write_demo_guide(tmp_path, EM_DASH_LINE)
-        report = demo_qa.run_all_checks(
-            str(guide), expected_demos=2, language="ja"
-        )
+        report = demo_qa.run_all_checks(str(guide), expected_demos=2, language="ja")
         assert report["language"] == "ja"
         guide_em_dash = [
             i
@@ -204,9 +205,7 @@ class TestDemoLanguageFlag:
 
     def test_ja_runs_japanese_ai_tells(self, tmp_path):
         guide = _write_demo_guide(tmp_path, JA_AI_TELL_LINE)
-        report = demo_qa.run_all_checks(
-            str(guide), expected_demos=2, language="ja"
-        )
+        report = demo_qa.run_all_checks(str(guide), expected_demos=2, language="ja")
         ai_tell = [i for i in report["issues"] if i["check"] == "japanese_ai_tell"]
         assert ai_tell, "Japanese AI tell should be flagged in ja mode"
 
@@ -216,13 +215,11 @@ class TestDemoLanguageFlag:
             [JA_POLITE_LINE] * 4 + [JA_PLAIN_LINE] * 2 + [JA_FORMAL_LINE] * 2
         )
         guide = _write_demo_guide(tmp_path, body)
-        report = demo_qa.run_all_checks(
-            str(guide), expected_demos=2, language="ja"
+        report = demo_qa.run_all_checks(str(guide), expected_demos=2, language="ja")
+        mixed = [i for i in report["issues"] if i["check"] == "japanese_mixed_styles"]
+        assert mixed, (
+            "mixed styles should be flagged when both registers exceed threshold"
         )
-        mixed = [
-            i for i in report["issues"] if i["check"] == "japanese_mixed_styles"
-        ]
-        assert mixed, "mixed styles should be flagged when both registers exceed threshold"
 
     def test_companion_files_em_dash_always_enforced(self, tmp_path):
         """Companion scripts stay in English regardless of guide language."""
@@ -280,9 +277,7 @@ def _make_minimal_hackathon(tmp_path: Path, body_extra: str = "") -> Path:
     (coach / "facilitation-guide.md").write_text(
         "# Facilitation Guide\n", encoding="utf-8"
     )
-    (coach / "scoring-rubric.md").write_text(
-        "# Scoring Rubric\n", encoding="utf-8"
-    )
+    (coach / "scoring-rubric.md").write_text("# Scoring Rubric\n", encoding="utf-8")
     (resources / "reference-architecture.md").write_text(
         "# Reference Architecture\n", encoding="utf-8"
     )

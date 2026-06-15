@@ -15,6 +15,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import { readFile } from "@/api/client";
+import { stripHtmlComments } from "@/utils/markdown";
 
 function extractToc(markdown: string): Array<{ level: number; text: string; id: string }> {
   const toc: Array<{ level: number; text: string; id: string }> = [];
@@ -67,7 +68,7 @@ export function MarkdownViewer() {
   }, [navigate]);
 
   // Strip HTML comments so they aren't rendered as visible text
-  const cleaned = useMemo(() => content.replace(/<!--[\s\S]*?-->/g, ""), [content]);
+  const cleaned = useMemo(() => stripHtmlComments(content), [content]);
   const toc = useMemo(() => extractToc(cleaned), [cleaned]);
 
   if (loading) {

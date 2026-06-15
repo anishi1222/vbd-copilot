@@ -105,11 +105,9 @@ class ModelRouter:
             needs_billing_data=needs_billing,
             reasoning=reasoning,
         )
-
         logger.info(
-            "Query classified: model=%s needs_billing=%s reasoning=%s",
+            "Query classified: model=%s needs_billing=%s",
             classification.model,
             classification.needs_billing_data,
-            classification.reasoning,
         )
         return classification

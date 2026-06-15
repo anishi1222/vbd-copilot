@@ -64,29 +64,59 @@ PLACEHOLDER_RE = re.compile(
 # committee-written Japanese. Detected only when --language ja is selected.
 # Each entry: (compiled regex, short label).
 JAPANESE_AI_TELL_PATTERNS = [
-    (re.compile(r"\u3068\u8a00\u3048\u308b\u3067\u3057\u3087\u3046"),  # と言えるでしょう
-     "Hedging cliche '\u3068\u8a00\u3048\u308b\u3067\u3057\u3087\u3046'"),
-    (re.compile(r"\u306b\u3064\u3044\u3066\u8ff0\u3079\u307e\u3059"),  # について述べます
-     "Formulaic narration '\u306b\u3064\u3044\u3066\u8ff0\u3079\u307e\u3059'"),
-    (re.compile(r"\u304c\u6328\u3052\u3089\u308c\u307e\u3059"),  # が挙げられます
-     "Formulaic enumeration '\u304c\u6328\u3052\u3089\u308c\u307e\u3059'"),
-    (re.compile(r"\u3059\u308b\u3053\u3068\u304c\u3067\u304d\u307e\u3059"),  # することができます
-     "Verbose construction '\u3059\u308b\u3053\u3068\u304c\u3067\u304d\u307e\u3059' (use '\u3067\u304d\u307e\u3059')"),
-    (re.compile(r"\u3059\u308b\u3053\u3068\u304c\u53ef\u80fd\u3067\u3059"),  # することが可能です
-     "Verbose construction '\u3059\u308b\u3053\u3068\u304c\u53ef\u80fd\u3067\u3059' (use '\u3067\u304d\u307e\u3059')"),
-    (re.compile(r"\u3068\u8003\u3048\u3089\u308c\u307e\u3059"),  # と考えられます
-     "Vague hedge '\u3068\u8003\u3048\u3089\u308c\u307e\u3059'"),
-    (re.compile(r"\u3068\u8a00\u3063\u3066\u3082\u904e\u8a00\u3067\u306f\u3042\u308a\u307e\u305b\u3093"),  # と言っても過言ではありません
-     "Cliche hyperbole '\u3068\u8a00\u3063\u3066\u3082\u904e\u8a00\u3067\u306f\u3042\u308a\u307e\u305b\u3093'"),
-    (re.compile(r"\u4ee5\u4e0a\u306e\u3053\u3068\u304b\u3089"),  # 以上のことから
-     "Formulaic conclusion '\u4ee5\u4e0a\u306e\u3053\u3068\u304b\u3089'"),
+    (
+        re.compile(
+            r"\u3068\u8a00\u3048\u308b\u3067\u3057\u3087\u3046"
+        ),  # と言えるでしょう
+        "Hedging cliche '\u3068\u8a00\u3048\u308b\u3067\u3057\u3087\u3046'",
+    ),
+    (
+        re.compile(
+            r"\u306b\u3064\u3044\u3066\u8ff0\u3079\u307e\u3059"
+        ),  # について述べます
+        "Formulaic narration '\u306b\u3064\u3044\u3066\u8ff0\u3079\u307e\u3059'",
+    ),
+    (
+        re.compile(r"\u304c\u6328\u3052\u3089\u308c\u307e\u3059"),  # が挙げられます
+        "Formulaic enumeration '\u304c\u6328\u3052\u3089\u308c\u307e\u3059'",
+    ),
+    (
+        re.compile(
+            r"\u3059\u308b\u3053\u3068\u304c\u3067\u304d\u307e\u3059"
+        ),  # することができます
+        "Verbose construction '\u3059\u308b\u3053\u3068\u304c\u3067\u304d\u307e\u3059' (use '\u3067\u304d\u307e\u3059')",
+    ),
+    (
+        re.compile(
+            r"\u3059\u308b\u3053\u3068\u304c\u53ef\u80fd\u3067\u3059"
+        ),  # することが可能です
+        "Verbose construction '\u3059\u308b\u3053\u3068\u304c\u53ef\u80fd\u3067\u3059' (use '\u3067\u304d\u307e\u3059')",
+    ),
+    (
+        re.compile(r"\u3068\u8003\u3048\u3089\u308c\u307e\u3059"),  # と考えられます
+        "Vague hedge '\u3068\u8003\u3048\u3089\u308c\u307e\u3059'",
+    ),
+    (
+        re.compile(
+            r"\u3068\u8a00\u3063\u3066\u3082\u904e\u8a00\u3067\u306f\u3042\u308a\u307e\u305b\u3093"
+        ),  # と言っても過言ではありません
+        "Cliche hyperbole '\u3068\u8a00\u3063\u3066\u3082\u904e\u8a00\u3067\u306f\u3042\u308a\u307e\u305b\u3093'",
+    ),
+    (
+        re.compile(r"\u4ee5\u4e0a\u306e\u3053\u3068\u304b\u3089"),  # 以上のことから
+        "Formulaic conclusion '\u4ee5\u4e0a\u306e\u3053\u3068\u304b\u3089'",
+    ),
 ]
 
 # Detection patterns for the two main Japanese sentence-ending styles.
 # Used by check_japanese_mixed_styles to flag decks that mix polite (\u3067\u3059/\u307e\u3059)
 # and plain/literary (\u3060/\u3067\u3042\u308b) registers in the same speaker note.
-_JA_POLITE_RE = re.compile(r"(\u3067\u3059\u3002|\u307e\u3059\u3002|\u307e\u3057\u305f\u3002)")
-_JA_PLAIN_RE = re.compile(r"(\u3060\u3002|\u3067\u3042\u308b\u3002|\u3060\u3063\u305f\u3002|\u3067\u3042\u3063\u305f\u3002)")
+_JA_POLITE_RE = re.compile(
+    r"(\u3067\u3059\u3002|\u307e\u3059\u3002|\u307e\u3057\u305f\u3002)"
+)
+_JA_PLAIN_RE = re.compile(
+    r"(\u3060\u3002|\u3067\u3042\u308b\u3002|\u3060\u3063\u305f\u3002|\u3067\u3042\u3063\u305f\u3002)"
+)
 _JA_MIXED_THRESHOLD = 3  # need at least this many of *each* style to flag
 
 
