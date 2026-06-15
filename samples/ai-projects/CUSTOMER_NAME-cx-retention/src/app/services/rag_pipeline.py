@@ -69,9 +69,8 @@ class RAGPipeline:
             conversation_turn=conversation_turn,
         )
         logger.info(
-            "Pipeline: model=%s needs_billing=%s",
+            "Pipeline: model=%s",
             classification.model,
-            classification.needs_billing_data,
         )
 
         # 2. Fetch billing data (if needed)
