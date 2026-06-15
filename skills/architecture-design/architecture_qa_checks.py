@@ -47,17 +47,42 @@ PLACEHOLDER_RE = re.compile(
     re.IGNORECASE,
 )
 
-EMOJI_RE = re.compile(
-    "[\U0001f600-\U0001f64f"
-    "\U0001f300-\U0001f5ff"
-    "\U0001f680-\U0001f6ff"
-    "\U0001f900-\U0001f9ff"
-    "\U00002702-\U000027b0"
-    "\U0000fe00-\U0000fe0f"
-    "\U0000200d"
-    "\U00002600-\U000026ff"
-    "]",
+_EMOJI_RANGES = (
+    (0x1F600, 0x1F64F),
+    (0x1F300, 0x1F5FF),
+    (0x1F680, 0x1F6FF),
+    (0x1F900, 0x1F9FF),
+    (0x2702, 0x27B0),
+    (0xFE00, 0xFE0F),
+    (0x200D, 0x200D),
+    (0x2600, 0x26FF),
 )
+
+
+class _EmojiMatch:
+    def __init__(self, char: str) -> None:
+        self._char = char
+
+    def group(self) -> str:
+        return self._char
+
+
+def _is_emoji(char: str) -> bool:
+    codepoint = ord(char)
+    return any(start <= codepoint <= end for start, end in _EMOJI_RANGES)
+
+
+class _EmojiMatcher:
+    def finditer(self, text: str):
+        for char in text:
+            if _is_emoji(char):
+                yield _EmojiMatch(char)
+
+    def findall(self, text: str) -> list[str]:
+        return [match.group() for match in self.finditer(text)]
+
+
+EMOJI_RE = _EmojiMatcher()
 
 EM_DASH_RE = re.compile(r"\u2014")
 

@@ -31,7 +31,7 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
 log = logging.getLogger(__name__)
@@ -139,6 +139,18 @@ def _store() -> Any:
     return _event_store
 
 
+def _ensure_safe_outputs_path(path: Path) -> Path:
+    try:
+        resolved = path.resolve()  # codeql[py/path-injection]: path is constrained to outputs/ below before use.
+    except (ValueError, OSError, RuntimeError):
+        raise HTTPException(status_code=400, detail="Invalid path")
+
+    outputs_resolved = _outputs_dir.resolve()
+    if not resolved.is_relative_to(outputs_resolved):
+        raise HTTPException(status_code=400, detail="Path outside outputs directory")
+    return resolved
+
+
 def _safe_outputs_path(raw: str) -> Path:
     """Resolve *raw* and assert it is inside outputs/.
 
@@ -149,21 +161,71 @@ def _safe_outputs_path(raw: str) -> Path:
     if "\x00" in raw:
         raise HTTPException(status_code=400, detail="Invalid path")
 
-    outputs_resolved = _outputs_dir.resolve()
-
     try:
         raw_path = Path(raw)
         # Always resolve relative to the outputs directory, never CWD.
         if raw_path.is_absolute():
-            resolved = raw_path.resolve()
+            candidate = raw_path
         else:
-            resolved = (outputs_resolved / raw_path).resolve()
+            candidate = _outputs_dir.resolve() / raw_path
     except (ValueError, OSError):
         raise HTTPException(status_code=400, detail="Invalid path")
 
-    if not resolved.is_relative_to(outputs_resolved):
-        raise HTTPException(status_code=400, detail="Path outside outputs directory")
-    return resolved
+    return _ensure_safe_outputs_path(candidate)
+
+
+def _safe_output_is_file(path: Path) -> bool:
+    return _ensure_safe_outputs_path(path).is_file()  # codeql[py/path-injection]: validated outputs/ path.
+
+
+def _safe_output_is_dir(path: Path) -> bool:
+    return _ensure_safe_outputs_path(path).is_dir()  # codeql[py/path-injection]: validated outputs/ path.
+
+
+def _safe_output_exists(path: Path) -> bool:
+    return _ensure_safe_outputs_path(path).exists()  # codeql[py/path-injection]: validated outputs/ path.
+
+
+def _safe_output_stat(path: Path) -> os.stat_result:
+    return _ensure_safe_outputs_path(path).stat()  # codeql[py/path-injection]: validated outputs/ path.
+
+
+def _safe_output_read_text(path: Path) -> str:
+    return _ensure_safe_outputs_path(path).read_text(  # codeql[py/path-injection]: validated outputs/ path.
+        encoding="utf-8",
+        errors="replace",
+    )
+
+
+def _safe_output_read_bytes(path: Path) -> bytes:
+    return _ensure_safe_outputs_path(path).read_bytes()  # codeql[py/path-injection]: validated outputs/ path.
+
+
+def _safe_output_unlink(path: Path) -> None:
+    _ensure_safe_outputs_path(path).unlink()  # codeql[py/path-injection]: validated outputs/ path.
+
+
+def _safe_output_rmtree(path: Path) -> None:
+    import shutil
+
+    shutil.rmtree(str(_ensure_safe_outputs_path(path)))  # codeql[py/path-injection]: validated outputs/ path.
+
+
+def _safe_output_mkdir(path: Path) -> None:
+    _ensure_safe_outputs_path(path).mkdir(parents=True, exist_ok=True)  # codeql[py/path-injection]: validated outputs/ path.
+
+
+def _safe_output_relative(path: Path) -> str:
+    return str(_ensure_safe_outputs_path(path).relative_to(_outputs_dir.resolve()))
+
+
+def _safe_zip_write(zf: Any, path: Path, arcname: str) -> None:
+    zf.write(str(_ensure_safe_outputs_path(path)), arcname)  # codeql[py/path-injection]: validated outputs/ path.
+
+
+def _safe_file_response(path: Path, filename: str, media_type: str) -> FileResponse:
+    safe = _ensure_safe_outputs_path(path)
+    return FileResponse(path=str(safe), filename=filename, media_type=media_type)  # codeql[py/path-injection]: validated outputs/ path.
 
 
 # ---------------------------------------------------------------------------
@@ -914,8 +976,6 @@ async def list_outputs_grouped() -> JSONResponse:
 
 def _build_outputs_grouped(outputs_resolved: Path) -> list[dict]:  # noqa: PLR0912, PLR0915
     """Scan outputs/ and return grouped deliverables (no caching logic here)."""
-    import re as _re
-
     groups: list[dict] = []
 
     # ── Slides ────────────────────────────────────────────────
@@ -943,13 +1003,9 @@ def _build_outputs_grouped(outputs_resolved: Path) -> list[dict]:  # noqa: PLR09
                 companions.append(str(pdf))
 
             # Parse metadata from filename
-            level_m = _re.search(r"[_-](l[1-4]00)[_-]", stem, _re.IGNORECASE)
-            dur_m = _re.search(r"(\d+)\s*(?:min|h)", stem, _re.IGNORECASE)
-            title = stem.replace("-", " ").replace("_", " ")
-            title = _re.sub(r"\bl\d{3}\b", "", title, flags=_re.IGNORECASE).strip()
-            title = _re.sub(
-                r"\d+\s*(?:min|h)\b", "", title, flags=_re.IGNORECASE
-            ).strip()
+            content_level = _extract_content_level(stem)
+            duration = _extract_duration(stem, normalize_minutes=False)
+            title = _clean_output_title(stem)
 
             try:
                 stat = p.stat()
@@ -964,8 +1020,8 @@ def _build_outputs_grouped(outputs_resolved: Path) -> list[dict]:  # noqa: PLR09
                     "primary_file": str(p),
                     "file_count": len(companions),
                     "files": companions,
-                    "content_level": level_m.group(1).upper() if level_m else None,
-                    "duration": dur_m.group(0) if dur_m else None,
+                    "content_level": content_level,
+                    "duration": duration,
                     "has_pdf": pdf.is_file(),
                     "size": stat.st_size,
                     "modified": stat.st_mtime,
@@ -1154,17 +1210,15 @@ def _build_outputs_grouped(outputs_resolved: Path) -> list[dict]:  # noqa: PLR09
 @app.delete("/outputs")
 async def delete_output(path: str) -> JSONResponse:
     """Delete a file or directory under outputs/."""
-    import shutil
-
     resolved = _safe_outputs_path(path)
-    if resolved.is_file():
-        resolved.unlink()
-    elif resolved.is_dir():
-        shutil.rmtree(str(resolved))
+    if _safe_output_is_file(resolved):
+        _safe_output_unlink(resolved)
+    elif _safe_output_is_dir(resolved):
+        _safe_output_rmtree(resolved)
     else:
         raise HTTPException(status_code=404, detail="Not found")
     # Return only the relative path — never expose absolute server paths.
-    rel = str(resolved.relative_to(_outputs_dir.resolve()))
+    rel = _safe_output_relative(resolved)
     return JSONResponse(content={"ok": True, "deleted": rel})
 
 
@@ -1177,8 +1231,6 @@ async def delete_grouped_output(id: str) -> JSONResponse:
     groups (hackathons, ai-projects) we remove the entire subfolder.  For
     slides and demos we remove the individual companion files.
     """
-    import shutil
-
     parts = id.strip("/").split("/", 1)
     if len(parts) != 2 or not parts[0] or not parts[1]:
         raise HTTPException(status_code=400, detail="Invalid group id")
@@ -1189,64 +1241,39 @@ async def delete_grouped_output(id: str) -> JSONResponse:
     if ".." in slug or "/" in slug or "\\" in slug or "\x00" in slug:
         raise HTTPException(status_code=400, detail="Invalid group id")
 
-    outputs_resolved = _outputs_dir.resolve()
     deleted: list[str] = []
 
     if category in ("hackathons", "ai-projects"):
         # Directory-based groups — remove the whole subfolder
-        target = outputs_resolved / category / slug
-        resolved = target.resolve()
-        try:
-            resolved.relative_to(outputs_resolved)
-        except ValueError:
-            raise HTTPException(
-                status_code=400, detail="Path outside outputs directory"
-            )
-        if resolved.is_dir():
-            shutil.rmtree(str(resolved))
+        resolved = _safe_outputs_path(f"{category}/{slug}")
+        if _safe_output_is_dir(resolved):
+            _safe_output_rmtree(resolved)
             deleted.append(str(resolved))
         else:
             raise HTTPException(status_code=404, detail="Directory not found")
 
     elif category == "slides":
         # Slide groups: pptx + optional pdf + optional generate_*.py
-        slides_dir = outputs_resolved / "slides"
+        slides_dir = _safe_outputs_path("slides")
         for p in slides_dir.iterdir():
-            if p.is_file() and (
+            if _safe_output_is_file(p) and (
                 p.stem == slug
                 or p.stem == f"{slug}"
                 or p.name == f"generate_{slug.replace('-', '_')}_pptx.py"
             ):
-                resolved = p.resolve()
-                try:
-                    resolved.relative_to(outputs_resolved)
-                except ValueError:
-                    continue
-                resolved.unlink()
+                resolved = _ensure_safe_outputs_path(p)
+                _safe_output_unlink(resolved)
                 deleted.append(str(resolved))
 
     elif category == "demos":
         # Demo groups: {slug}-demos.md + optional companion directory
-        demos_dir = outputs_resolved / "demos"
-        md_file = (demos_dir / f"{slug}-demos.md").resolve()
-        try:
-            md_file.relative_to(outputs_resolved)
-        except ValueError:
-            raise HTTPException(
-                status_code=400, detail="Path outside outputs directory"
-            )
-        if md_file.is_file():
-            md_file.unlink()
+        md_file = _safe_outputs_path(f"demos/{slug}-demos.md")
+        if _safe_output_is_file(md_file):
+            _safe_output_unlink(md_file)
             deleted.append(str(md_file))
-        companion = (demos_dir / slug).resolve()
-        try:
-            companion.relative_to(outputs_resolved)
-        except ValueError:
-            raise HTTPException(
-                status_code=400, detail="Path outside outputs directory"
-            )
-        if companion.is_dir():
-            shutil.rmtree(str(companion))
+        companion = _safe_outputs_path(f"demos/{slug}")
+        if _safe_output_is_dir(companion):
+            _safe_output_rmtree(companion)
             deleted.append(str(companion))
         if not deleted:
             raise HTTPException(status_code=404, detail="Demo files not found")
@@ -1260,14 +1287,14 @@ async def delete_grouped_output(id: str) -> JSONResponse:
 @app.get("/file")
 async def read_file(path: str) -> JSONResponse:
     resolved = _safe_outputs_path(path)
-    if not resolved.is_file():
+    if not _safe_output_is_file(resolved):
         raise HTTPException(status_code=404, detail="File not found")
     try:
-        content = resolved.read_text(encoding="utf-8", errors="replace")
-    except Exception as exc:
+        content = _safe_output_read_text(resolved)
+    except OSError as exc:
         raise HTTPException(status_code=500, detail=str(exc))
     # Return only the relative path — never expose absolute server paths.
-    rel = str(resolved.relative_to(_outputs_dir.resolve()))
+    rel = _safe_output_relative(resolved)
     return JSONResponse(content={"path": rel, "content": content})
 
 
@@ -1279,17 +1306,16 @@ async def read_file(path: str) -> JSONResponse:
 @app.get("/file/download")
 async def download_file(path: str):
     import fnmatch
-    from fastapi.responses import FileResponse
 
     resolved = _safe_outputs_path(path)
-    if not resolved.is_file():
+    if not _safe_output_is_file(resolved):
         raise HTTPException(status_code=404, detail="File not found")
     if fnmatch.fnmatch(resolved.name, "generate_*.py"):
         raise HTTPException(
             status_code=403, detail="Generator scripts are not downloadable"
         )
-    return FileResponse(
-        path=str(resolved),
+    return _safe_file_response(
+        path=resolved,
         filename=resolved.name,
         media_type="application/octet-stream",
     )
@@ -1323,16 +1349,16 @@ async def create_zip(body: ZipRequest):
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for rp in resolved_paths:
-            if rp.is_file():
+            if _safe_output_is_file(rp):
                 if not _fnmatch_zip.fnmatch(rp.name, "generate_*.py"):
-                    zf.write(str(rp), rp.name)
-            elif rp.is_dir():
+                    _safe_zip_write(zf, rp, rp.name)
+            elif _safe_output_is_dir(rp):
                 for child in rp.rglob("*"):
-                    if child.is_file() and not _fnmatch_zip.fnmatch(
+                    if _safe_output_is_file(child) and not _fnmatch_zip.fnmatch(
                         child.name, "generate_*.py"
                     ):
                         arcname = str(child.relative_to(rp.parent))
-                        zf.write(str(child), arcname)
+                        _safe_zip_write(zf, child, arcname)
 
     buf.seek(0)
     # Sanitise user-supplied name to prevent header injection.
@@ -1352,43 +1378,112 @@ async def create_zip(body: ZipRequest):
 # ---------------------------------------------------------------------------
 
 
+def _extract_content_level(name: str) -> str | None:
+    lower_name = name.lower()
+    for level in ("l100", "l200", "l300", "l400"):
+        if f"-{level}-" in lower_name or f"_{level}_" in lower_name:
+            return level.upper()
+    return None
+
+
+def _extract_duration(name: str, *, normalize_minutes: bool = True) -> str | None:
+    lower_name = name.lower()
+    i = 0
+    while i < len(lower_name):
+        if not lower_name[i].isdigit():
+            i += 1
+            continue
+
+        start = i
+        while i < len(lower_name) and lower_name[i].isdigit():
+            i += 1
+        number = lower_name[start:i]
+        while i < len(lower_name) and lower_name[i].isspace():
+            i += 1
+
+        if lower_name.startswith("min", i):
+            if normalize_minutes:
+                return f"{number} min"
+            return name[start : i + 3]
+        if i < len(lower_name) and lower_name[i] == "h":
+            if not normalize_minutes:
+                return name[start : i + 1]
+            return f"{number}h"
+
+    return None
+
+
+def _duration_token(token: str) -> bool:
+    lower = token.lower()
+    if lower.endswith("min"):
+        return lower[:-3].isdigit()
+    if lower.endswith("h"):
+        return lower[:-1].isdigit()
+    return False
+
+
+def _clean_output_title(stem: str) -> str:
+    parts = stem.replace("-", " ").replace("_", " ").split()
+    cleaned: list[str] = []
+    i = 0
+    while i < len(parts):
+        lower = parts[i].lower()
+        if len(lower) == 4 and lower[0] == "l" and lower[1:].isdigit():
+            i += 1
+            continue
+        if _duration_token(lower):
+            i += 1
+            continue
+        if lower.isdigit() and i + 1 < len(parts) and parts[i + 1].lower() in {
+            "min",
+            "h",
+        }:
+            i += 2
+            continue
+        cleaned.append(parts[i])
+        i += 1
+    return " ".join(cleaned).strip()
+
+
+def _safe_plan_stem(stem: str) -> bool:
+    return 0 < len(stem) <= 255 and all(
+        char.isalnum() or char in "._-" for char in stem
+    )
+
+
 @app.get("/outputs/metadata")
 async def get_output_metadata(path: str) -> JSONResponse:
     """Parse structured metadata from an output file or its companion plan."""
-    import re as _re
-
     resolved = _safe_outputs_path(path)
-    if not resolved.exists():
+    if not _safe_output_exists(resolved):
         raise HTTPException(status_code=404, detail="Not found")
 
     name = resolved.name
+    is_file = _safe_output_is_file(resolved)
+    file_stat = _safe_output_stat(resolved) if is_file else None
     meta: dict[str, Any] = {
         "title": name.rsplit(".", 1)[0] if "." in name else name,
         "category": _classify_output_category(resolved),
-        "size": resolved.stat().st_size if resolved.is_file() else 0,
-        "modified": resolved.stat().st_mtime if resolved.is_file() else 0,
+        "size": file_stat.st_size if file_stat else 0,
+        "modified": file_stat.st_mtime if file_stat else 0,
     }
 
     # Parse level from filename  e.g.  "keda-banking-l300-30min.pptx"
-    m = _re.search(r"[_-](l[1-4]00)[_-]", name, _re.IGNORECASE)
-    if m:
-        meta["contentLevel"] = m.group(1).upper()
+    content_level = _extract_content_level(name)
+    if content_level:
+        meta["contentLevel"] = content_level
 
     # Parse duration from filename
-    m = _re.search(r"(\d+)\s*min", name, _re.IGNORECASE)
-    if m:
-        meta["duration"] = f"{m.group(1)} min"
-    else:
-        m = _re.search(r"(\d+)\s*h", name, _re.IGNORECASE)
-        if m:
-            meta["duration"] = f"{m.group(1)}h"
+    duration = _extract_duration(name)
+    if duration:
+        meta["duration"] = duration
 
     # Slide count for pptx files
-    if resolved.suffix.lower() == ".pptx" and resolved.is_file():
+    if resolved.suffix.lower() == ".pptx" and is_file:
         try:
             from pptx import Presentation as _Prs
 
-            prs = _Prs(str(resolved))
+            prs = _Prs(str(_ensure_safe_outputs_path(resolved)))  # codeql[py/path-injection]: validated outputs/ path.
             meta["slideCount"] = len(prs.slides)
         except Exception:
             pass
@@ -1397,12 +1492,13 @@ async def get_output_metadata(path: str) -> JSONResponse:
     plans_dir = _app_dir / "plans"
     if plans_dir.is_dir():
         stem = name.rsplit(".", 1)[0]
-        for suffix in ["-complete.md", "-plan.md"]:
-            plan = plans_dir / (stem + suffix)
-            if plan.is_file():
-                # Return only the relative path — never expose absolute server paths.
-                meta["planFile"] = f"plans/{plan.name}"
-                break
+        if _safe_plan_stem(stem):
+            for suffix in ["-complete.md", "-plan.md"]:
+                plan = plans_dir / (stem + suffix)
+                if plan.is_file():  # codeql[py/path-injection]: stem is filename-only and allowlisted above.
+                    # Return only the relative path — never expose absolute server paths.
+                    meta["planFile"] = f"plans/{plan.name}"
+                    break
 
     return JSONResponse(content=meta)
 
@@ -1430,15 +1526,16 @@ async def preview_pptx(body: PptxPreviewRequest) -> JSONResponse:
     import tempfile
 
     resolved = _safe_outputs_path(body.path)
-    if not resolved.is_file() or resolved.suffix.lower() != ".pptx":
+    if not _safe_output_is_file(resolved) or resolved.suffix.lower() != ".pptx":
         raise HTTPException(status_code=400, detail="Not a .pptx file")
 
     # ── Cache key ─────────────────────────────────────────────────────────
+    file_stat = _safe_output_stat(resolved)
     file_hash = hashlib.sha256(
-        f"{resolved.name}:{resolved.stat().st_mtime}:{body.max_width}".encode()
+        f"{resolved.name}:{file_stat.st_mtime}:{body.max_width}".encode()
     ).hexdigest()[:12]
-    cache_dir = _outputs_dir / "slides" / ".img_cache" / file_hash
-    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_dir = _safe_outputs_path(f"slides/.img_cache/{file_hash}")
+    _safe_output_mkdir(cache_dir)
 
     # ── Check cache ───────────────────────────────────────────────────────
     cached_pngs = sorted(cache_dir.glob("slide-*.png"))
@@ -1461,7 +1558,7 @@ async def preview_pptx(body: PptxPreviewRequest) -> JSONResponse:
                         "pdf",
                         "--outdir",
                         tmpdir,
-                        str(resolved),
+                        str(_ensure_safe_outputs_path(resolved)),
                     ],
                     capture_output=True,
                     timeout=120,
@@ -1507,7 +1604,7 @@ async def preview_pptx(body: PptxPreviewRequest) -> JSONResponse:
     try:
         from pptx import Presentation
 
-        prs = Presentation(str(resolved))
+        prs = Presentation(str(_ensure_safe_outputs_path(resolved)))  # codeql[py/path-injection]: validated outputs/ path.
         for slide in list(prs.slides):
             notes_text = ""
             title_text = ""
@@ -1555,7 +1652,7 @@ async def preview_pptx(body: PptxPreviewRequest) -> JSONResponse:
     # ── Build response ────────────────────────────────────────────────────
     slides_data = []
     for i, png_path in enumerate(cached_pngs):
-        png_b64 = base64.b64encode(png_path.read_bytes()).decode("ascii")
+        png_b64 = base64.b64encode(_safe_output_read_bytes(png_path)).decode("ascii")
         # Get dimensions from the PNG
         try:
             from PIL import Image as _PILImage

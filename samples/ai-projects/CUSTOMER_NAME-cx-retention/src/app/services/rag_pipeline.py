@@ -69,8 +69,7 @@ class RAGPipeline:
             conversation_turn=conversation_turn,
         )
         logger.info(
-            "Pipeline: session=%s model=%s needs_billing=%s",
-            session_id,
+            "Pipeline: model=%s needs_billing=%s",
             classification.model,
             classification.needs_billing_data,
         )
