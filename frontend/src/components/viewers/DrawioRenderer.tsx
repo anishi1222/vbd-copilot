@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useCallback } from "react";
+import { useMemo, useState } from "react";
 import { Button, Tooltip } from "@fluentui/react-components";
 import {
   ZoomIn20Regular,
@@ -12,7 +12,6 @@ import {
  * draw.io viewer-static JS (client-side, no data sent externally).
  */
 export function DrawioRenderer({ xml }: { xml: string }) {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
   const [loaded, setLoaded] = useState(false);
 
   // Build the self-contained HTML document for the iframe.
@@ -72,23 +71,6 @@ export function DrawioRenderer({ xml }: { xml: string }) {
 </html>`;
   }, [xml]);
 
-  const postZoomCommand = useCallback(
-    (action: "zoomIn" | "zoomOut" | "fit") => {
-      // The draw.io viewer exposes graph objects on the page.
-      // We reach into the iframe to call zoom methods.
-      const win = iframeRef.current?.contentWindow;
-      if (!win) return;
-      try {
-        // viewer-static attaches graphs to window.__drawio_graphs or
-        // document.querySelectorAll('.geDiagramContainer')
-        win.postMessage(JSON.stringify({ action }), "*");
-      } catch {
-        // cross-origin safety — buttons just won't zoom
-      }
-    },
-    [],
-  );
-
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {/* Toolbar */}
@@ -102,28 +84,28 @@ export function DrawioRenderer({ xml }: { xml: string }) {
           background: "var(--card-bg)",
         }}
       >
-        <Tooltip content="Zoom in" relationship="label">
+        <Tooltip content="Zoom controls are unavailable in sandboxed preview" relationship="label">
           <Button
             appearance="subtle"
             size="small"
             icon={<ZoomIn20Regular />}
-            onClick={() => postZoomCommand("zoomIn")}
+            disabled
           />
         </Tooltip>
-        <Tooltip content="Zoom out" relationship="label">
+        <Tooltip content="Zoom controls are unavailable in sandboxed preview" relationship="label">
           <Button
             appearance="subtle"
             size="small"
             icon={<ZoomOut20Regular />}
-            onClick={() => postZoomCommand("zoomOut")}
+            disabled
           />
         </Tooltip>
-        <Tooltip content="Fit to view" relationship="label">
+        <Tooltip content="Zoom controls are unavailable in sandboxed preview" relationship="label">
           <Button
             appearance="subtle"
             size="small"
             icon={<ZoomFit20Regular />}
-            onClick={() => postZoomCommand("fit")}
+            disabled
           />
         </Tooltip>
         <div style={{ flex: 1 }} />
@@ -157,7 +139,6 @@ export function DrawioRenderer({ xml }: { xml: string }) {
           </div>
         )}
         <iframe
-          ref={iframeRef}
           srcDoc={srcDoc}
           onLoad={() => setLoaded(true)}
           sandbox="allow-scripts"
