@@ -193,13 +193,22 @@ function buildMenu() {
 }
 // ── IPC handlers ─────────────────────────────────────────────────────────
 function setupIpc() {
+    const userHome = electron_1.app.getPath("home");
     // Open a file/folder in the system file manager
     electron_1.ipcMain.handle("shell:openPath", async (_event, filePath) => {
-        return electron_1.shell.openPath(filePath);
+        const normalized = path.resolve(filePath);
+        if (!normalized.startsWith(userHome)) {
+            throw new Error("Access denied: path outside allowed directories");
+        }
+        return electron_1.shell.openPath(normalized);
     });
     // Open a folder in VS Code
     electron_1.ipcMain.handle("shell:openInVSCode", async (_event, folderPath) => {
-        return electron_1.shell.openExternal(`vscode://file/${folderPath}`);
+        const normalized = path.resolve(folderPath);
+        if (!normalized.startsWith(userHome)) {
+            throw new Error("Access denied: path outside allowed directories");
+        }
+        return electron_1.shell.openExternal(`vscode://file/${normalized}`);
     });
     // Show a system notification
     electron_1.ipcMain.handle("notify", async (_event, title, body) => {
