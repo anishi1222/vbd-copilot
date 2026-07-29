@@ -93,7 +93,7 @@ export function App() {
           <Route path="/library/project"><ProjectExplorer /></Route>
           <Route path="/library/drawio"><DrawioViewer /></Route>
           <Route path="/settings"><Settings /></Route>
-          <Route><Redirect to="/" replace /></Route>
+          <Route path="*"><Redirect to="/" replace /></Route>
         </Switch>
       </Suspense>
     </Shell>
