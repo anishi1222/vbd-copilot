@@ -22,5 +22,5 @@ export function useLocation() {
 
 export function useSearchParams(): [URLSearchParams] {
   const search = useSearch();
-  return [useMemo(() => new URLSearchParams(search), [search])];
+  return [useMemo(() => new URLSearchParams(window.location.search), [search])];
 }
