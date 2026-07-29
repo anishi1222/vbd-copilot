@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "@/router";
 import { Text, Card, Button, Badge, Tooltip } from "@fluentui/react-components";
 import { ArrowRight16Regular, ChevronLeft20Regular, ChevronRight20Regular, Dismiss16Regular, LockClosed16Regular, Warning20Regular } from "@fluentui/react-icons";
 import { AGENT_META, type AgentType, type ContentLevel } from "@/api/types";
