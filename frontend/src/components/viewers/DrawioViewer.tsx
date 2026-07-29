@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams, useNavigate } from "@/router";
 import { Button, Spinner, Text } from "@fluentui/react-components";
 import { ArrowLeft20Regular, ArrowDownload20Regular } from "@fluentui/react-icons";
 import { readFile } from "@/api/client";

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "@/router";
 import { useJobStore } from "@/stores/jobStore";
 import {
   Text,

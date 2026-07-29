@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Redirect, Route, Switch } from "wouter";
 import { Shell } from "./components/layout/Shell";
 import { useJobStore } from "./stores/jobStore";
 import { useActiveJobWatcher } from "./hooks/useActiveJobWatcher";
@@ -83,18 +83,18 @@ export function App() {
   return (
     <Shell>
       <Suspense fallback={<div style={{ display: "flex", justifyContent: "center", padding: 80 }}>Loading...</div>}>
-        <Routes>
-          <Route path="/" element={<Launchpad />} />
-          <Route path="/mission" element={<MissionControl />} />
-          <Route path="/workspace" element={<AgentWorkspace />} />
-          <Route path="/library" element={<OutputLibrary />} />
-          <Route path="/library/slides" element={<SlideViewer />} />
-          <Route path="/library/markdown" element={<MarkdownViewer />} />
-          <Route path="/library/project" element={<ProjectExplorer />} />
-          <Route path="/library/drawio" element={<DrawioViewer />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <Switch>
+          <Route path="/"><Launchpad /></Route>
+          <Route path="/mission"><MissionControl /></Route>
+          <Route path="/workspace"><AgentWorkspace /></Route>
+          <Route path="/library"><OutputLibrary /></Route>
+          <Route path="/library/slides"><SlideViewer /></Route>
+          <Route path="/library/markdown"><MarkdownViewer /></Route>
+          <Route path="/library/project"><ProjectExplorer /></Route>
+          <Route path="/library/drawio"><DrawioViewer /></Route>
+          <Route path="/settings"><Settings /></Route>
+          <Route path="*"><Redirect to="/" replace /></Route>
+        </Switch>
       </Suspense>
     </Shell>
   );
