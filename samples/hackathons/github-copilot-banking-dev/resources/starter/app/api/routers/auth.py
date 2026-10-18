@@ -3,10 +3,10 @@ from __future__ import annotations
 import os
 from datetime import datetime, timedelta
 
+import jwt
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
 
@@ -63,7 +63,7 @@ def decode_access_token(token: str) -> dict | None:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload
-    except JWTError:
+    except jwt.InvalidTokenError:
         return None
 
 
