@@ -4,9 +4,9 @@
 
 - A **GitHub Copilot** subscription (Individual, Business, or Enterprise) with CLI access
 - The [**GitHub CLI** (`gh`)](https://cli.github.com/) installed and authenticated (`gh auth login`)
-- For the **desktop app**: Node.js 18+ and npm, Python 3.11+, [`uv`](https://docs.astral.sh/uv/)
+- For the **desktop app**: Node.js 18+ and npm, Python 3.11.5+, [`uv`](https://docs.astral.sh/uv/)
 - For **plugin mode**: a GitHub Copilot client that supports `copilot plugin install`, plus [`uv`](https://docs.astral.sh/uv/) on your `PATH`
-- For the **CLI**: one of Docker, GitHub Codespaces, or a native Python 3.11+ setup
+- For the **CLI**: one of Docker, GitHub Codespaces, or a native Python 3.11.5+ setup
 
 ---
 
